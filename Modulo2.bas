@@ -12,8 +12,10 @@ Sub EsportaMeseInPDF()
 
     Set ws = ActiveSheet
 
-    ' Blocca l'esecuzione se ci si trova su Dashboard o Festività
-    If ws.Name = "Dashboard" Or ws.Name = "Festività" Then
+    ' Blocca l'esecuzione se ci si trova su Dashboard o Festivita'
+    ' (la "a" accentata e' scritta con ChrW(224) cosi' il modulo resta in
+    '  puro ASCII e non si rovina in fase di importazione)
+    If ws.Name = "Dashboard" Or ws.Name = "Festivit" & ChrW(224) Then
         MsgBox "Spostati su un foglio mensile (es. Novembre) prima di esportare in PDF.", vbExclamation, "Esportazione PDF"
         Exit Sub
     End If
@@ -93,5 +95,5 @@ ErrorePDF:
     On Error Resume Next
     If eraProtetto Then ws.Protect
     On Error GoTo 0
-    MsgBox "Impossibile salvare il PDF. Verifica che il file '" & nomeFile & "' non sia già aperto in un altro programma.", vbCritical, "Errore Esportazione"
+    MsgBox "Impossibile salvare il PDF. Verifica che il file '" & nomeFile & "' non sia gi" & ChrW(224) & " aperto in un altro programma.", vbCritical, "Errore Esportazione"
 End Sub
