@@ -14,7 +14,9 @@ Option Explicit
 '                                condizionale e poi mostra le anomalie trovate.
 '                                Basta eseguirla una volta; si puo' ripetere
 '                                senza creare doppioni.
-'   VerificaAssenze           -> elenca le anomalie presenti in tutti i mesi,
+'   VerificaAssenze           -> elenca le anomalie presenti in tutti i mesi
+'                                (assenze, orari non in sequenza, L. 104 oltre
+'                                il massimo mensile),
 '                                senza modificare nulla. Utile da collegare a
 '                                un pulsante sulla Dashboard.
 '=============================================================================
@@ -145,6 +147,14 @@ Public Sub VerificaAssenze()
     Dim sTipo As String, vOre As Variant
     Dim bOre As Boolean
     Dim sElenco As String
+    Dim nL104 As Long, vMax As Variant, lMaxL104 As Long
+
+    ' massimo mensile L. 104 dal foglio Impostazioni (se c'e'), altrimenti 3
+    lMaxL104 = 3
+    On Error Resume Next
+    vMax = Application.Evaluate("Max_L104_Mese")
+    If Not IsError(vMax) Then If IsNumeric(vMax) Then lMaxL104 = CLng(vMax)
+    On Error GoTo 0
 
     vMesi = Array("Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", _
                   "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre")
@@ -152,6 +162,7 @@ Public Sub VerificaAssenze()
     For Each v In vMesi
         Set ws = OttieniFoglio(CStr(v))
         If Not ws Is Nothing Then
+            nL104 = 0
             For r = RIGA_PRIMA To RIGA_ULTIMA
                 vOre = ws.Cells(r, 5).Value
                 sTipo = Trim$(CStr(ws.Cells(r, 14).Text))
@@ -169,14 +180,29 @@ Public Sub VerificaAssenze()
                               ": " & sTipo & " senza ore in Assenze"
                     nAnomalie = nAnomalie + 1
                 End If
+
+                ' orari non in sequenza (Entr1 < Usc1 < Entr2 < Usc2)
+                If OrariFuoriSequenza(ws, r) Then
+                    sElenco = sElenco & vbCrLf & "  - " & ws.Name & " " & GiornoRiga(ws, r) & _
+                              ": orari di entrata/uscita non in sequenza"
+                    nAnomalie = nAnomalie + 1
+                End If
+
+                If sTipo = "L. 104" Then nL104 = nL104 + 1
             Next r
+
+            If nL104 > lMaxL104 Then
+                sElenco = sElenco & vbCrLf & "  - " & ws.Name & ": " & nL104 & _
+                          " giorni di L. 104 (massimo " & lMaxL104 & ")"
+                nAnomalie = nAnomalie + 1
+            End If
         End If
     Next v
 
     If nAnomalie = 0 Then
-        MsgBox "Nessuna anomalia nelle assenze dei 12 mesi.", vbInformation, "Verifica assenze"
+        MsgBox "Nessuna anomalia nei 12 mesi (assenze, orari, L. 104).", vbInformation, "Verifica assenze"
     Else
-        MsgBox "Trovate " & nAnomalie & " anomalie nelle assenze:" & sElenco, _
+        MsgBox "Trovate " & nAnomalie & " anomalie:" & sElenco, _
                vbExclamation, "Verifica assenze"
     End If
 End Sub
@@ -238,6 +264,25 @@ Private Function FormulaLocale(ByVal ws As Worksheet, ByVal sFormula As String) 
     c.Formula = sFormula
     FormulaLocale = c.FormulaLocal
     c.ClearContents
+End Function
+
+
+' True se due orari consecutivi compilati sono in ordine inverso
+Private Function OrariFuoriSequenza(ByVal ws As Worksheet, ByVal r As Long) As Boolean
+    Dim k As Long
+    Dim v1 As Variant, v2 As Variant
+    For k = 6 To 8                       ' coppie F-G, G-H, H-I
+        v1 = ws.Cells(r, k).Value
+        v2 = ws.Cells(r, k + 1).Value
+        If Not IsEmpty(v1) And Not IsEmpty(v2) And Not IsError(v1) And Not IsError(v2) Then
+            If IsNumeric(v1) And IsNumeric(v2) Then
+                If CDbl(v2) < CDbl(v1) Then
+                    OrariFuoriSequenza = True
+                    Exit Function
+                End If
+            End If
+        End If
+    Next k
 End Function
 
 
