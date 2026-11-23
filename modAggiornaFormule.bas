@@ -4,8 +4,8 @@ Option Explicit
 '=============================================================================
 ' Modulo  : modAggiornaFormule  (macro "una tantum")
 ' Scopo   : riscrive con formule IDENTICHE e indipendenti dal mese le colonne
-'           B, C, D, J, K, L, M (righe 11-41) e il titolo B2 dei 12 fogli
-'           mensili, cosi' che:
+'           B, C, D, J, K, L, M (righe 11-41), il titolo B2, i totali E4:E5 e
+'           il riepilogo Q11:Q17 dei 12 fogli mensili, cosi' che:
 '             - ogni foglio prenda mese e anno solo da A1 del foglio e da
 '               Dashboard!A1 (niente piu' numeri del mese scritti a mano);
 '             - i giorni oltre la fine del mese spariscano da soli
@@ -178,6 +178,18 @@ Public Sub AggiornaFormuleMesi()
             ws.Range("K" & RIGA_PRIMA & ":K" & RIGA_ULTIMA).Formula = F_K
             ws.Range("L" & RIGA_PRIMA & ":L" & RIGA_ULTIMA).Formula = F_L
             ws.Range("M" & RIGA_PRIMA & ":M" & RIGA_ULTIMA).Formula = F_M
+
+            ' Totali del mese e riepilogo: sempre sulle righe 11-41, cosi'
+            ' anche il 29 febbraio (anni bisestili) viene conteggiato.
+            ws.Range("E4").Formula = "=SUM(K11:K41)"
+            ws.Range("E5").Formula = "=SUM(L11:L41)"
+            ws.Range("Q11").Formula = "=COUNTIF($N$11:$N$41,""Ferie"")"
+            ws.Range("Q12").Formula = "=COUNTIF($N$11:$N$41,""L. 104"")"
+            ws.Range("Q13").Formula = "=SUMIF($N$11:$N$41,""Art. 23 (Visite)"",$E$11:$E$41)"
+            ws.Range("Q14").Formula = "=SUMIF($N$11:$N$41,""Art. 25 (Motivi pers.)"",$E$11:$E$41)"
+            ws.Range("Q15").Formula = "=SUMIF($N$11:$N$41,""Art. 34 (A recupero)"",$E$11:$E$41)"
+            ws.Range("Q16").Formula = "=COUNTIF($N$11:$N$41,""Malattia"")"
+            ws.Range("Q17").Formula = "=COUNTIFS($H$11:$H$41,"">0"",$I$11:$I$41,"">0"",$J$11:$J$41,"">""&TIME(6,0,0))"
 
             ' stesso formato ore per J, K, L in tutti i mesi (zero nascosto)
             ws.Range("J" & RIGA_PRIMA & ":L" & RIGA_ULTIMA).NumberFormat = "[h]:mm;;"
