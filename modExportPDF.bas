@@ -38,7 +38,7 @@ Private Const PREFISSO_FILE As String = "Report_Annuale_"
 '         colonna A: stessa area usata da EsportaMeseInPDF (Modulo2).
 ' False = lascia invariata l'area di stampa di ogni foglio
 Private Const AREA_STAMPA_MESI As Boolean = True
-Private Const RIGA_INTESTAZIONE_MESE As Long = 11   ' riga con "Gg", "Sett", ...
+Private Const RIGA_INTESTAZIONE_MESE As Long = 10   ' riga con "Gg", "Sett", ...
 Private Const RIGA_MAX_MESE As Long = 41            ' riga del giorno 31
 
 
