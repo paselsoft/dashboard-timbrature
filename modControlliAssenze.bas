@@ -21,7 +21,10 @@ Option Explicit
 
 Private Const RIGA_PRIMA As Long = 11
 Private Const RIGA_ULTIMA As Long = 41
-Private Const AREA_CONTROLLO As String = "$E$11:$E$41,$N$11:$N$41"
+Private Const AREA_ORE As String = "$E$11:$E$41"
+Private Const AREA_TIPO As String = "$N$11:$N$41"
+Private Const AREA_VECCHIA As String = "$E$11:$E$41,$N$11:$N$41"   ' versione 1
+Private Const CELLA_APPOGGIO As String = "O11"   ' colonna vuota tra Tipo e Riepilogo
 
 ' Regole in sintassi inglese, riferite alla riga 11 (prima riga dell'area).
 Private Const REGOLA_ORE_SENZA_TIPO As String = _
@@ -33,31 +36,53 @@ Private Const REGOLA_TIPO_SENZA_ORE As String = _
 
 '-----------------------------------------------------------------------------
 ' Installa la formattazione condizionale nei 12 mesi
+' (versione 2: aree singole, nessuna cella temporanea fuori tabella,
+'  eventi e ricalcolo sospesi, avanzamento nella barra di stato)
 '-----------------------------------------------------------------------------
 Public Sub AggiungiControlliAssenze()
 
     Dim vMesi As Variant, v As Variant
     Dim ws As Worksheet, shIniziale As Object
     Dim eraProtetto As Boolean
-    Dim bScreenUpd As Boolean
+    Dim bScreenUpd As Boolean, bEvents As Boolean
+    Dim xlCalc As Long
     Dim nFogli As Long
+    Dim sRegola1 As String, sRegola2 As String
     Dim lErrNum As Long, sErrDesc As String, sFoglioErr As String
+
+    If MsgBox("Prima di continuare salva il file (Ctrl+S)." & vbCrLf & vbCrLf & _
+              "Procedere con l'installazione dei controlli?", _
+              vbQuestion + vbYesNo, "Controlli assenze") <> vbYes Then Exit Sub
 
     vMesi = Array("Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", _
                   "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre")
 
     Set shIniziale = ActiveSheet
     bScreenUpd = Application.ScreenUpdating
+    bEvents = Application.EnableEvents
+    xlCalc = Application.Calculation
 
     On Error GoTo GestioneErrori
     Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    Application.Calculation = xlCalculationManual
 
     For Each v In vMesi
         Set ws = OttieniFoglio(CStr(v))
         If Not ws Is Nothing Then
             sFoglioErr = ws.Name
+            Application.StatusBar = "Controlli assenze: " & ws.Name & "..."
+            DoEvents
+
             eraProtetto = ws.ProtectContents
             If eraProtetto Then ws.Unprotect
+
+            ' Le formule vanno passate nella lingua di Excel: le converto una
+            ' sola volta, sul primo foglio, usando la cella vuota O11.
+            If Len(sRegola1) = 0 Then
+                sRegola1 = FormulaLocale(ws, REGOLA_ORE_SENZA_TIPO)
+                sRegola2 = FormulaLocale(ws, REGOLA_TIPO_SENZA_ORE)
+            End If
 
             ' FormatConditions.Add interpreta i riferimenti relativi rispetto
             ' alla cella attiva: attivo il foglio e seleziono E11.
@@ -65,11 +90,14 @@ Public Sub AggiungiControlliAssenze()
             ws.Range("E" & RIGA_PRIMA).Select
 
             RimuoviRegoleEsistenti ws
-            AggiungiRegola ws, REGOLA_ORE_SENZA_TIPO
-            AggiungiRegola ws, REGOLA_TIPO_SENZA_ORE
+            AggiungiRegola ws.Range(AREA_ORE), sRegola1
+            AggiungiRegola ws.Range(AREA_ORE), sRegola2
+            AggiungiRegola ws.Range(AREA_TIPO), sRegola1
+            AggiungiRegola ws.Range(AREA_TIPO), sRegola2
 
             ws.Range("A1").Select
             If eraProtetto Then ws.Protect
+            eraProtetto = False
             nFogli = nFogli + 1
         End If
     Next v
@@ -77,7 +105,11 @@ Public Sub AggiungiControlliAssenze()
 
 Uscita:
     On Error Resume Next
+    If eraProtetto Then ws.Protect
     If Not shIniziale Is Nothing Then shIniziale.Activate
+    Application.StatusBar = False
+    Application.Calculation = xlCalc
+    Application.EnableEvents = bEvents
     Application.ScreenUpdating = bScreenUpd
     On Error GoTo 0
 
@@ -98,10 +130,6 @@ Uscita:
 GestioneErrori:
     lErrNum = Err.Number
     sErrDesc = Err.Description
-    If eraProtetto And Not ws Is Nothing Then
-        On Error Resume Next
-        ws.Protect
-    End If
     Resume Uscita
 End Sub
 
@@ -160,46 +188,56 @@ End Sub
 
 ' Elimina le regole create in precedenza da questa macro (riconosciute
 ' dall'area esatta a cui si applicano), lasciando intatte tutte le altre.
+' Esamina solo le regole che toccano le colonne E e N.
 Private Sub RimuoviRegoleEsistenti(ByVal ws As Worksheet)
     Dim i As Long
     Dim sArea As String
-    For i = ws.Cells.FormatConditions.Count To 1 Step -1
-        sArea = ""
-        On Error Resume Next
-        sArea = ws.Cells.FormatConditions(i).AppliesTo.Address
-        On Error GoTo 0
-        If StrComp(sArea, AREA_CONTROLLO, vbTextCompare) = 0 Then
-            ws.Cells.FormatConditions(i).Delete
-        End If
-    Next i
+    Dim fcs As FormatConditions
+    Dim vArea As Variant
+
+    For Each vArea In Array(AREA_ORE, AREA_TIPO)
+        Set fcs = ws.Range(vArea).FormatConditions
+        For i = fcs.Count To 1 Step -1
+            sArea = ""
+            On Error Resume Next
+            sArea = fcs(i).AppliesTo.Address
+            On Error GoTo 0
+            If StrComp(sArea, AREA_ORE, vbTextCompare) = 0 Or _
+               StrComp(sArea, AREA_TIPO, vbTextCompare) = 0 Or _
+               StrComp(sArea, AREA_VECCHIA, vbTextCompare) = 0 Then
+                fcs(i).Delete
+            End If
+        Next i
+    Next vArea
 End Sub
 
 
-' Aggiunge una regola "formula" all'area di controllo, con riempimento rosso
-' chiaro e testo rosso scuro, in cima alla lista delle priorita'.
-Private Sub AggiungiRegola(ByVal ws As Worksheet, ByVal sFormulaInglese As String)
-    Dim fc As FormatCondition
-    Set fc = ws.Range(AREA_CONTROLLO).FormatConditions.Add( _
-                Type:=xlExpression, Formula1:=FormulaLocale(ws, sFormulaInglese))
-    With fc
+' Aggiunge una regola "formula" (gia' nella lingua di Excel) all'area,
+' con riempimento rosso chiaro e testo rosso scuro in grassetto.
+Private Sub AggiungiRegola(ByVal rng As Range, ByVal sFormulaLocale As String)
+    With rng.FormatConditions.Add(Type:=xlExpression, Formula1:=sFormulaLocale)
         .Interior.Color = RGB(255, 199, 206)
         .Font.Color = RGB(156, 0, 6)
         .Font.Bold = True
         .StopIfTrue = False
-        .SetFirstPriority
     End With
 End Sub
 
 
 ' FormatConditions.Add vuole la formula nella lingua di Excel (in italiano:
-' E, O, VAL.NUMERO e il punto e virgola). La converto scrivendola in una
-' cella temporanea della riga 11 e rileggendola con FormulaLocal.
+' E, O, VAL.NUMERO e il punto e virgola). La converto scrivendola nella
+' cella vuota O11 (stessa riga delle regole) e rileggendola con FormulaLocal;
+' poi svuoto la cella senza toccarne la formattazione.
 Private Function FormulaLocale(ByVal ws As Worksheet, ByVal sFormula As String) As String
     Dim c As Range
-    Set c = ws.Cells(RIGA_PRIMA, ws.Columns.Count)   ' ultima colonna, riga 11
+    Set c = ws.Range(CELLA_APPOGGIO)
+    If Len(c.Formula) > 0 Then
+        Err.Raise vbObjectError + 600, , "La cella " & CELLA_APPOGGIO & " del foglio " & _
+                  ws.Name & " non e' vuota: impossibile usarla come appoggio."
+    End If
     c.Formula = sFormula
     FormulaLocale = c.FormulaLocal
-    c.Clear
+    c.ClearContents
 End Function
 
 
