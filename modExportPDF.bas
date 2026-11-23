@@ -15,9 +15,20 @@ Option Explicit
 '   disposizione originale (le formule non vengono toccate).
 '=============================================================================
 
-' True  = imposta margini stretti (come il preset "Stretto" di Excel)
+' True  = imposta margini ridotti (vedi costanti MARGINE_* sotto)
 ' False = lascia invariati i margini attuali di ogni foglio
 Private Const USA_MARGINI_STRETTI As Boolean = True
+
+' True  = ogni foglio su UNA sola pagina (larghezza E altezza)
+' False = una pagina in larghezza, altezza libera (piu' pagine se serve)
+Private Const UNA_PAGINA_PER_FOGLIO As Boolean = True
+
+' Margini in centimetri (usati solo se USA_MARGINI_STRETTI = True).
+' Sopra/sotto sono ridotti al minimo perche' i fogli mensili sono "alti"
+' (fino a 41 righe) e in orizzontale lo spazio verticale e' il piu' scarso.
+Private Const MARGINE_SX_DX_CM As Double = 0.8
+Private Const MARGINE_SOPRA_SOTTO_CM As Double = 0.8
+Private Const MARGINE_INTEST_PIEDE_CM As Double = 0.3
 
 ' Prefisso del nome del file PDF
 Private Const PREFISSO_FILE As String = "Report_Annuale_"
@@ -113,14 +124,20 @@ Public Sub EsportaReportPDF()
             .Orientation = xlLandscape
             .Zoom = False                ' obbligatorio per usare FitToPages
             .FitToPagesWide = 1          ' tutte le colonne in una pagina
-            .FitToPagesTall = False      ' altezza libera (piu' pagine se serve)
+            If UNA_PAGINA_PER_FOGLIO Then
+                .FitToPagesTall = 1      ' tutte le righe in una pagina
+            Else
+                .FitToPagesTall = False  ' altezza libera (piu' pagine se serve)
+            End If
+            .CenterHorizontally = True   ' tabella centrata sul foglio
+            .CenterVertically = False
             If USA_MARGINI_STRETTI Then
-                .LeftMargin = Application.InchesToPoints(0.25)
-                .RightMargin = Application.InchesToPoints(0.25)
-                .TopMargin = Application.InchesToPoints(0.75)
-                .BottomMargin = Application.InchesToPoints(0.75)
-                .HeaderMargin = Application.InchesToPoints(0.3)
-                .FooterMargin = Application.InchesToPoints(0.3)
+                .LeftMargin = Application.CentimetersToPoints(MARGINE_SX_DX_CM)
+                .RightMargin = Application.CentimetersToPoints(MARGINE_SX_DX_CM)
+                .TopMargin = Application.CentimetersToPoints(MARGINE_SOPRA_SOTTO_CM)
+                .BottomMargin = Application.CentimetersToPoints(MARGINE_SOPRA_SOTTO_CM)
+                .HeaderMargin = Application.CentimetersToPoints(MARGINE_INTEST_PIEDE_CM)
+                .FooterMargin = Application.CentimetersToPoints(MARGINE_INTEST_PIEDE_CM)
             End If
         End With
     Next i
