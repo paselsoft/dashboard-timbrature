@@ -33,6 +33,14 @@ Private Const MARGINE_INTEST_PIEDE_CM As Double = 0.3
 ' Prefisso del nome del file PDF
 Private Const PREFISSO_FILE As String = "Report_Annuale_"
 
+' True  = sui fogli mensili stampa solo B2:Q<ultimo giorno del mese>,
+'         escludendo la riga 1 (numero del mese, link e pulsanti) e la
+'         colonna A: stessa area usata da EsportaMeseInPDF (Modulo2).
+' False = lascia invariata l'area di stampa di ogni foglio
+Private Const AREA_STAMPA_MESI As Boolean = True
+Private Const RIGA_INTESTAZIONE_MESE As Long = 11   ' riga con "Gg", "Sett", ...
+Private Const RIGA_MAX_MESE As Long = 41            ' riga del giorno 31
+
 
 '-----------------------------------------------------------------------------
 ' Macro principale: da assegnare al pulsante sul foglio Dashboard
@@ -120,7 +128,12 @@ Public Sub EsportaReportPDF()
     ' l'operazione molto piu' veloce (va SEMPRE rimesso a True).
     ImpostaPrintCommunication False
     For i = 0 To nFogli - 1
-        With ThisWorkbook.Worksheets(aFogli(i)).PageSetup
+        Set ws = ThisWorkbook.Worksheets(aFogli(i))
+        With ws.PageSetup
+            ' Area di stampa uniforme per i mesi (la Dashboard resta com'e')
+            If AREA_STAMPA_MESI And ws.Name <> "Dashboard" Then
+                .PrintArea = "$B$2:$Q$" & UltimaRigaMese(ws)
+            End If
             .Orientation = xlLandscape
             .Zoom = False                ' obbligatorio per usare FitToPages
             .FitToPagesWide = 1          ' tutte le colonne in una pagina
@@ -223,6 +236,21 @@ GestioneErrori:
     Resume Uscita
 
 End Sub
+
+
+'-----------------------------------------------------------------------------
+' Ultima riga della tabella giornaliera di un foglio mensile: parte dalla
+' riga del giorno 31 e risale finche' la colonna B (giorno) e' vuota.
+' (Stessa logica di EsportaMeseInPDF, cosi' i due PDF coincidono.)
+'-----------------------------------------------------------------------------
+Private Function UltimaRigaMese(ByVal ws As Worksheet) As Long
+    Dim r As Long
+    r = RIGA_MAX_MESE
+    Do While r > RIGA_INTESTAZIONE_MESE And Len(Trim$(ws.Cells(r, 2).Text)) = 0
+        r = r - 1
+    Loop
+    UltimaRigaMese = r
+End Function
 
 
 '-----------------------------------------------------------------------------
