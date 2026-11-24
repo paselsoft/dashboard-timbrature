@@ -44,6 +44,7 @@ Excel per iPad **non esegue le macro**. Si possono inserire timbrature e assenze
 | Assenze / Tipo Assenza | Rosso | Ore senza Tipo, oppure permesso a ore senza ore |
 | Entr / Usc | Rosso | Orari non in sequenza (es. uscita prima dell'entrata) |
 | Usc 1 / Entr 2 | Rosso | Pausa più breve della pausa minima (Impostazioni) |
+| Giorno ed Entr/Usc | Giallo | Giorno lavorativo già passato senza timbrature né assenze (dimenticato?) |
 | Tipo Assenza e riepilogo L. 104 | Rosso | Giorni di L. 104 oltre il massimo mensile |
 | Riga del giorno | Evidenziata | Numero dispari di timbrature, oppure più di 10 ore lavorate |
 | Dashboard, Residuo | Arancione | Sotto il 20% del plafond |
@@ -86,7 +87,7 @@ Calendario, Pasqua e intestazioni si aggiornano da soli.
 | `modProtezione` (ProteggiFogli, SbloccaFogli) | Da tenere |
 | `modBackup` (copia di sicurezza automatica) | Da tenere |
 | `modAggiornaFormule` | **Da rimuovere — non rieseguire**: riscriverebbe l'orario fisso e scollegherebbe Impostazioni |
-| `modImpostazioni`, `modAvvisi`, `modPausa` | Già eseguiti: si possono rimuovere |
+| `modImpostazioni`, `modAvvisi`, `modPausa`, `modGiorniMancanti` | Già eseguiti: si possono rimuovere |
 
 ## Copie di sicurezza automatiche
 

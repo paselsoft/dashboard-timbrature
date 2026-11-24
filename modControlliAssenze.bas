@@ -17,7 +17,7 @@ Option Explicit
 '   VerificaAssenze           -> elenca le anomalie presenti in tutti i mesi
 '                                (assenze, orari non in sequenza, pause piu'
 '                                brevi del minimo, L. 104 oltre il massimo
-'                                mensile),
+'                                mensile, giorni lavorativi passati senza dati),
 '                                senza modificare nulla. Utile da collegare a
 '                                un pulsante sulla Dashboard.
 '=============================================================================
@@ -148,7 +148,8 @@ Public Sub VerificaAssenze()
     n = ContaVoci(sElenco)
 
     If n = 0 Then
-        MsgBox "Nessuna anomalia nei 12 mesi (assenze, orari, pause, L. 104).", vbInformation, "Verifica assenze"
+        MsgBox "Nessuna anomalia nei 12 mesi (assenze, orari, pause, L. 104, giorni mancanti).", _
+               vbInformation, "Verifica assenze"
     Else
         MsgBox "Trovate " & n & " anomalie:" & Abbrevia(sElenco, 20), _
                vbExclamation, "Verifica assenze"
@@ -172,6 +173,8 @@ Public Function ElencoAnomalie() As String
     Dim nL104 As Long, vMax As Variant, lMaxL104 As Long
     Dim vPausa As Variant, lPausaMin As Long, lPausa As Long
     Dim vG As Variant, vH As Variant
+    Dim lAnno As Long, lMese As Long, vGiorno As Variant, vTarget As Variant
+    Dim dGiorno As Date
 
     ' massimo mensile L. 104 dal foglio Impostazioni (se c'e'), altrimenti 3
     lMaxL104 = 3
@@ -190,10 +193,18 @@ Public Function ElencoAnomalie() As String
     vMesi = Array("Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", _
                   "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre")
 
+    ' anno (Dashboard!A1) per riconoscere i giorni gia' passati
+    lAnno = 0
+    On Error Resume Next
+    lAnno = CLng(ThisWorkbook.Worksheets("Dashboard").Range("A1").Value)
+    On Error GoTo 0
+
     For Each v In vMesi
         Set ws = OttieniFoglio(CStr(v))
         If Not ws Is Nothing Then
             nL104 = 0
+            lMese = 0
+            If IsNumeric(ws.Range("A1").Value) Then lMese = CLng(ws.Range("A1").Value)
             For r = RIGA_PRIMA To RIGA_ULTIMA
                 vOre = ws.Cells(r, 5).Value
                 sTipo = Trim$(CStr(ws.Cells(r, 14).Text))
@@ -226,6 +237,25 @@ Public Function ElencoAnomalie() As String
                             If lPausa >= 0 And lPausa < lPausaMin Then
                                 sElenco = sElenco & vbCrLf & "  - " & ws.Name & " " & GiornoRiga(ws, r) & _
                                           ": pausa di " & lPausa & " min (minimo " & lPausaMin & ")"
+                            End If
+                        End If
+                    End If
+                End If
+
+                ' giorno lavorativo gia' passato senza timbrature ne' assenze
+                If lAnno > 0 And lMese >= 1 And lMese <= 12 And Len(sTipo) = 0 Then
+                    vGiorno = ws.Cells(r, 2).Value
+                    vTarget = ws.Cells(r, 4).Value
+                    If Not IsError(vGiorno) And Not IsError(vTarget) Then
+                        If IsNumeric(vGiorno) And Not IsEmpty(vGiorno) And _
+                           IsNumeric(vTarget) And Not IsEmpty(vTarget) Then
+                            If CDbl(vTarget) > 0 Then
+                                dGiorno = DateSerial(lAnno, lMese, CLng(vGiorno))
+                                If dGiorno < Date And _
+                                   Application.WorksheetFunction.Count(ws.Range(ws.Cells(r, 5), ws.Cells(r, 9))) = 0 Then
+                                    sElenco = sElenco & vbCrLf & "  - " & ws.Name & " " & GiornoRiga(ws, r) & _
+                                              ": giorno lavorativo senza timbrature n" & ChrW(233) & " assenze"
+                                End If
                             End If
                         End If
                     End If
