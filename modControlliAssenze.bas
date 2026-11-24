@@ -15,8 +15,9 @@ Option Explicit
 '                                Basta eseguirla una volta; si puo' ripetere
 '                                senza creare doppioni.
 '   VerificaAssenze           -> elenca le anomalie presenti in tutti i mesi
-'                                (assenze, orari non in sequenza, L. 104 oltre
-'                                il massimo mensile),
+'                                (assenze, orari non in sequenza, pause piu'
+'                                brevi del minimo, L. 104 oltre il massimo
+'                                mensile),
 '                                senza modificare nulla. Utile da collegare a
 '                                un pulsante sulla Dashboard.
 '=============================================================================
@@ -147,7 +148,7 @@ Public Sub VerificaAssenze()
     n = ContaVoci(sElenco)
 
     If n = 0 Then
-        MsgBox "Nessuna anomalia nei 12 mesi (assenze, orari, L. 104).", vbInformation, "Verifica assenze"
+        MsgBox "Nessuna anomalia nei 12 mesi (assenze, orari, pause, L. 104).", vbInformation, "Verifica assenze"
     Else
         MsgBox "Trovate " & n & " anomalie:" & Abbrevia(sElenco, 20), _
                vbExclamation, "Verifica assenze"
@@ -169,12 +170,21 @@ Public Function ElencoAnomalie() As String
     Dim bOre As Boolean
     Dim sElenco As String
     Dim nL104 As Long, vMax As Variant, lMaxL104 As Long
+    Dim vPausa As Variant, lPausaMin As Long, lPausa As Long
+    Dim vG As Variant, vH As Variant
 
     ' massimo mensile L. 104 dal foglio Impostazioni (se c'e'), altrimenti 3
     lMaxL104 = 3
     On Error Resume Next
     vMax = Application.Evaluate("Max_L104_Mese")
     If Not IsError(vMax) Then If IsNumeric(vMax) Then lMaxL104 = CLng(vMax)
+    On Error GoTo 0
+
+    ' pausa minima in minuti (Impostazioni, nome Pausa_Minima); 0 = nessun controllo
+    lPausaMin = 0
+    On Error Resume Next
+    vPausa = Application.Evaluate("Pausa_Minima")
+    If Not IsError(vPausa) Then If IsNumeric(vPausa) Then lPausaMin = CLng(Round(CDbl(vPausa) * 1440, 0))
     On Error GoTo 0
 
     vMesi = Array("Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", _
@@ -204,6 +214,21 @@ Public Function ElencoAnomalie() As String
                 If OrariFuoriSequenza(ws, r) Then
                     sElenco = sElenco & vbCrLf & "  - " & ws.Name & " " & GiornoRiga(ws, r) & _
                               ": orari di entrata/uscita non in sequenza"
+                End If
+
+                ' pausa tra Usc 1 ed Entr 2 piu' breve del minimo
+                If lPausaMin > 0 Then
+                    vG = ws.Cells(r, 7).Value
+                    vH = ws.Cells(r, 8).Value
+                    If Not IsEmpty(vG) And Not IsEmpty(vH) And Not IsError(vG) And Not IsError(vH) Then
+                        If IsNumeric(vG) And IsNumeric(vH) Then
+                            lPausa = CLng(Round((CDbl(vH) - CDbl(vG)) * 1440, 0))
+                            If lPausa >= 0 And lPausa < lPausaMin Then
+                                sElenco = sElenco & vbCrLf & "  - " & ws.Name & " " & GiornoRiga(ws, r) & _
+                                          ": pausa di " & lPausa & " min (minimo " & lPausaMin & ")"
+                            End If
+                        End If
+                    End If
                 End If
 
                 If sTipo = "L. 104" Then nL104 = nL104 + 1

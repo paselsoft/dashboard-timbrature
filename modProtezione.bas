@@ -61,7 +61,7 @@ Public Sub ProteggiFogli()
     Set ws = OttieniFoglio("Impostazioni")
     If Not ws Is Nothing Then
         sFoglioErr = ws.Name
-        ProteggiConCelleLibere ws, "C6:C12,C15:C16,C20:C25"
+        ProteggiConCelleLibere ws, "C6:C12,C15:C16,C20:C26"
         nFogli = nFogli + 1
     Else
         sMancanti = sMancanti & " Impostazioni"

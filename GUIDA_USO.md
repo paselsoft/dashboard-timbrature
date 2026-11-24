@@ -6,7 +6,7 @@
 |---|---|
 | **Dashboard** | Riepilogo dell'anno: saldi mensili, residui di ferie e permessi, buoni pasto, grafico. L'anno è in **A1**. |
 | **Festività** | Festività dell'anno, calcolate da sole (Pasqua compresa). Il patrono è il 1° dicembre. La riga 15 è libera per un'eventuale festività in più. |
-| **Impostazioni** | Orario previsto per giorno della settimana, buono pasto, plafond annui, massimo L. 104 al mese. **Si modificano solo le celle gialle.** |
+| **Impostazioni** | Orario previsto per giorno della settimana, buono pasto, plafond annui, massimo L. 104 al mese, pausa minima. **Si modificano solo le celle gialle.** |
 | **Gennaio … Dicembre** | Cartellino del mese: timbrature, assenze, saldo. |
 
 ## Inserimento dei dati (fogli mensili)
@@ -43,6 +43,7 @@ Excel per iPad **non esegue le macro**. Si possono inserire timbrature e assenze
 |---|---|---|
 | Assenze / Tipo Assenza | Rosso | Ore senza Tipo, oppure permesso a ore senza ore |
 | Entr / Usc | Rosso | Orari non in sequenza (es. uscita prima dell'entrata) |
+| Usc 1 / Entr 2 | Rosso | Pausa più breve della pausa minima (Impostazioni) |
 | Tipo Assenza e riepilogo L. 104 | Rosso | Giorni di L. 104 oltre il massimo mensile |
 | Riga del giorno | Evidenziata | Numero dispari di timbrature, oppure più di 10 ore lavorate |
 | Dashboard, Residuo | Arancione | Sotto il 20% del plafond |
@@ -83,8 +84,13 @@ Calendario, Pasqua e intestazioni si aggiornano da soli.
 | `modControlliAssenze` (VerificaAssenze) | Da tenere: lo usa anche il PDF annuale per il controllo dei dati |
 | `modNuovoAnno` (NuovoAnno) | Da tenere |
 | `modProtezione` (ProteggiFogli, SbloccaFogli) | Da tenere |
+| `modBackup` (copia di sicurezza automatica) | Da tenere |
 | `modAggiornaFormule` | **Da rimuovere — non rieseguire**: riscriverebbe l'orario fisso e scollegherebbe Impostazioni |
-| `modImpostazioni`, `modAvvisi` | Già eseguiti: si possono rimuovere |
+| `modImpostazioni`, `modAvvisi`, `modPausa` | Già eseguiti: si possono rimuovere |
+
+## Copie di sicurezza automatiche
+
+A ogni salvataggio il file viene copiato nella sottocartella **Backup**, con la data nel nome (`..._AAAA-MM-GG.xlsm`). C'è una copia per giorno, e si tengono le ultime 10 giornate. Per tornare a una versione precedente: apri la copia e usa **File → Salva con nome** al posto del file originale.
 
 ## Se qualcosa va storto
 

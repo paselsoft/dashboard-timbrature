@@ -1,0 +1,8 @@
+' Da incollare nel modulo "Questa_cartella_di_lavoro", sotto Workbook_Open.
+' (Non copiare un secondo "Option Explicit": c'e' gia'.)
+
+Private Sub Workbook_AfterSave(ByVal Success As Boolean)
+    ' Dopo ogni salvataggio riuscito crea/aggiorna la copia di sicurezza
+    ' del giorno nella cartella Backup (vedi modulo modBackup).
+    If Success Then CreaBackupGiornaliero
+End Sub
