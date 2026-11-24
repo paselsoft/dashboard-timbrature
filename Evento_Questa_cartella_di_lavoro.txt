@@ -1,5 +1,22 @@
-' Da incollare nel modulo "Questa_cartella_di_lavoro", sotto Workbook_Open.
-' (Non copiare un secondo "Option Explicit": c'e' gia'.)
+' Contenuto completo del modulo "Questa_cartella_di_lavoro"
+' (sostituisce tutto il codice presente in quel modulo)
+
+Option Explicit
+
+Private Sub Workbook_Open()
+    ' Se il file e' dell'anno in corso apre il foglio del mese corrente,
+    ' altrimenti (archivio o anno futuro) apre la Dashboard.
+    Dim vMesi As Variant
+    vMesi = Array("Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", _
+                  "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre")
+    On Error Resume Next
+    If CLng(ThisWorkbook.Worksheets("Dashboard").Range("A1").Value) = Year(Date) Then
+        ThisWorkbook.Worksheets(vMesi(Month(Date) - 1)).Activate
+    Else
+        ThisWorkbook.Worksheets("Dashboard").Activate
+    End If
+    On Error GoTo 0
+End Sub
 
 Private Sub Workbook_AfterSave(ByVal Success As Boolean)
     ' Dopo ogni salvataggio riuscito crea/aggiorna la copia di sicurezza

@@ -61,7 +61,7 @@ Excel per iPad **non esegue le macro**. Si possono inserire timbrature e assenze
 | **NuovoAnno** | Alt+F8 | **Una volta a inizio gennaio** (vedi sotto) |
 | **ProteggiFogli** / **SbloccaFogli** | Alt+F8 | Rimettere / togliere la protezione su tutti i fogli |
 
-All'apertura il file va da solo sul foglio del mese corrente.
+All'apertura il file va da solo sul foglio del mese corrente se è dell'anno in corso; un archivio (o un anno futuro) si apre sulla Dashboard.
 
 ## Inizio anno (gennaio)
 
