@@ -20,6 +20,23 @@
 
 Un giorno senza timbrature e senza assenze conta 0: i giorni futuri non falsano il saldo.
 
+## Protezione dei fogli
+
+Tutti i fogli sono protetti **senza password**. Si possono modificare solo le celle da compilare:
+
+| Foglio | Celle modificabili |
+|---|---|
+| Mesi | Assenze, Entr/Usc, Tipo Assenza |
+| Impostazioni | Le celle gialle |
+| Dashboard | Residuo anno precedente (C4) e Ferie anno precedente (I7) |
+| Festività | La riga libera 15 |
+
+Per una modifica straordinaria (per esempio aggiungere una nota a una cella): **Revisione → Rimuovi protezione foglio**, oppure la macro **SbloccaFogli** per tutti i fogli insieme. Finito, esegui **ProteggiFogli**. Le macro del file gestiscono la protezione da sole.
+
+## Su iPad
+
+Excel per iPad **non esegue le macro**. Si possono inserire timbrature e assenze e vedere saldi, colori e Dashboard. Importazione, PDF, verifica e nuovo anno vanno fatti dal PC.
+
 ## Cosa significano i colori
 
 | Dove | Colore | Significato |
@@ -38,8 +55,9 @@ Un giorno senza timbrature e senza assenze conta 0: i giorni futuri non falsano 
 | **ImportaDaPortaleWeb** | Pulsante nei fogli mensili | Per caricare le timbrature da un file .txt copiato dal portale |
 | **EsportaMeseInPDF** | Pulsante nei fogli mensili | PDF del singolo mese (`Timbrature_AAAA_MM_Mese.pdf`) |
 | **VerificaAssenze** | Alt+F8 (o un pulsante sulla Dashboard) | Prima di un report: elenca le anomalie di tutto l'anno |
-| **EsportaReportPDF** | Pulsante sulla Dashboard | PDF annuale (Dashboard + 12 mesi, una pagina ciascuno) |
+| **EsportaReportPDF** | Pulsante sulla Dashboard | PDF annuale (Dashboard + 12 mesi, una pagina ciascuno). Prima controlla i dati e, se trova anomalie, chiede se esportare comunque |
 | **NuovoAnno** | Alt+F8 | **Una volta a inizio gennaio** (vedi sotto) |
+| **ProteggiFogli** / **SbloccaFogli** | Alt+F8 | Rimettere / togliere la protezione su tutti i fogli |
 
 All'apertura il file va da solo sul foglio del mese corrente.
 
@@ -62,8 +80,9 @@ Calendario, Pasqua e intestazioni si aggiornano da soli.
 | `Modulo1` (ImportaDaPortaleWeb) | Da tenere |
 | `Modulo2` (EsportaMeseInPDF) | Da tenere |
 | `modExportPDF` (EsportaReportPDF) | Da tenere |
-| `modControlliAssenze` (VerificaAssenze) | Da tenere |
+| `modControlliAssenze` (VerificaAssenze) | Da tenere: lo usa anche il PDF annuale per il controllo dei dati |
 | `modNuovoAnno` (NuovoAnno) | Da tenere |
+| `modProtezione` (ProteggiFogli, SbloccaFogli) | Da tenere |
 | `modAggiornaFormule` | **Da rimuovere — non rieseguire**: riscriverebbe l'orario fisso e scollegherebbe Impostazioni |
 | `modImpostazioni`, `modAvvisi` | Già eseguiti: si possono rimuovere |
 

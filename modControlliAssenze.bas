@@ -137,13 +137,34 @@ End Sub
 
 
 '-----------------------------------------------------------------------------
-' Elenca le anomalie di tutti i mesi (non modifica nulla)
+' Mostra le anomalie di tutti i mesi (non modifica nulla)
 '-----------------------------------------------------------------------------
 Public Sub VerificaAssenze()
+    Dim sElenco As String
+    Dim n As Long
+
+    sElenco = ElencoAnomalie()
+    n = ContaVoci(sElenco)
+
+    If n = 0 Then
+        MsgBox "Nessuna anomalia nei 12 mesi (assenze, orari, L. 104).", vbInformation, "Verifica assenze"
+    Else
+        MsgBox "Trovate " & n & " anomalie:" & Abbrevia(sElenco, 20), _
+               vbExclamation, "Verifica assenze"
+    End If
+End Sub
+
+
+'-----------------------------------------------------------------------------
+' Restituisce l'elenco delle anomalie (una per riga, ciascuna preceduta da
+' vbCrLf & "  - "), oppure "" se non ce ne sono.
+' E' pubblica: la usa anche EsportaReportPDF prima di creare il PDF.
+'-----------------------------------------------------------------------------
+Public Function ElencoAnomalie() As String
 
     Dim vMesi As Variant, v As Variant
     Dim ws As Worksheet
-    Dim r As Long, nAnomalie As Long
+    Dim r As Long
     Dim sTipo As String, vOre As Variant
     Dim bOre As Boolean
     Dim sElenco As String
@@ -174,18 +195,15 @@ Public Sub VerificaAssenze()
                 If bOre And Len(sTipo) = 0 Then
                     sElenco = sElenco & vbCrLf & "  - " & ws.Name & " " & GiornoRiga(ws, r) & _
                               ": " & ws.Cells(r, 5).Text & " in Assenze senza Tipo Assenza"
-                    nAnomalie = nAnomalie + 1
                 ElseIf EPermessoAOre(sTipo) And Not bOre Then
                     sElenco = sElenco & vbCrLf & "  - " & ws.Name & " " & GiornoRiga(ws, r) & _
                               ": " & sTipo & " senza ore in Assenze"
-                    nAnomalie = nAnomalie + 1
                 End If
 
                 ' orari non in sequenza (Entr1 < Usc1 < Entr2 < Usc2)
                 If OrariFuoriSequenza(ws, r) Then
                     sElenco = sElenco & vbCrLf & "  - " & ws.Name & " " & GiornoRiga(ws, r) & _
                               ": orari di entrata/uscita non in sequenza"
-                    nAnomalie = nAnomalie + 1
                 End If
 
                 If sTipo = "L. 104" Then nL104 = nL104 + 1
@@ -194,18 +212,37 @@ Public Sub VerificaAssenze()
             If nL104 > lMaxL104 Then
                 sElenco = sElenco & vbCrLf & "  - " & ws.Name & ": " & nL104 & _
                           " giorni di L. 104 (massimo " & lMaxL104 & ")"
-                nAnomalie = nAnomalie + 1
             End If
         End If
     Next v
 
-    If nAnomalie = 0 Then
-        MsgBox "Nessuna anomalia nei 12 mesi (assenze, orari, L. 104).", vbInformation, "Verifica assenze"
-    Else
-        MsgBox "Trovate " & nAnomalie & " anomalie:" & sElenco, _
-               vbExclamation, "Verifica assenze"
-    End If
-End Sub
+    ElencoAnomalie = sElenco
+End Function
+
+
+' Numero di voci in un elenco prodotto da ElencoAnomalie
+Public Function ContaVoci(ByVal sElenco As String) As Long
+    Const SEP As String = vbCrLf & "  - "
+    If Len(sElenco) = 0 Then Exit Function
+    ContaVoci = (Len(sElenco) - Len(Replace(sElenco, SEP, ""))) \ Len(SEP)
+End Function
+
+
+' Tiene solo le prime nMax voci (un MsgBox mostra al massimo ~1000 caratteri)
+Public Function Abbrevia(ByVal sElenco As String, ByVal nMax As Long) As String
+    Const SEP As String = vbCrLf & "  - "
+    Dim v As Variant, i As Long, n As Long, s As String
+    v = Split(sElenco, SEP)
+    n = UBound(v)                                   ' v(0) e' vuoto
+    For i = 1 To n
+        If i > nMax Then
+            s = s & vbCrLf & "  ... e altre " & (n - nMax) & " (usa VerificaAssenze per l'elenco)"
+            Exit For
+        End If
+        s = s & SEP & v(i)
+    Next i
+    Abbrevia = s
+End Function
 
 
 '-----------------------------------------------------------------------------

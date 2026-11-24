@@ -41,6 +41,12 @@ Private Const AREA_STAMPA_MESI As Boolean = True
 Private Const RIGA_INTESTAZIONE_MESE As Long = 10   ' riga con "Gg", "Sett", ...
 Private Const RIGA_MAX_MESE As Long = 41            ' riga del giorno 31
 
+' True  = prima di creare il PDF controlla i dati (assenze, orari, L. 104)
+'         con la funzione ElencoAnomalie del modulo modControlliAssenze e,
+'         se trova anomalie, chiede se esportare comunque.
+'         Se il modulo non c'e', il controllo viene saltato senza errori.
+Private Const VERIFICA_PRIMA_DEL_PDF As Boolean = True
+
 
 '-----------------------------------------------------------------------------
 ' Macro principale: da assegnare al pulsante sul foglio Dashboard
@@ -62,6 +68,9 @@ Public Sub EsportaReportPDF()
     Dim ws As Worksheet
     Dim sMsg As String
     Dim i As Long
+    Dim colProtetti As New Collection   ' fogli protetti da riproteggere
+    Dim vNome As Variant
+    Dim sAnomalie As String, nAnomalie As Long
 
     '--- 1) Il file deve essere gia' stato salvato su disco -------------------
     If Len(ThisWorkbook.Path) = 0 Then
@@ -112,6 +121,26 @@ Public Sub EsportaReportPDF()
     sPercorso = ThisWorkbook.Path & Application.PathSeparator & _
                 PREFISSO_FILE & Format$(Date, "yyyy-mm-dd") & ".pdf"
 
+    '--- 3b) Controllo dei dati prima del PDF ----------------------------------
+    If VERIFICA_PRIMA_DEL_PDF Then
+        sAnomalie = ""
+        nAnomalie = 0
+        On Error Resume Next
+        sAnomalie = Application.Run("'" & ThisWorkbook.Name & "'!ElencoAnomalie")
+        If Err.Number = 0 And Len(sAnomalie) > 0 Then
+            nAnomalie = Application.Run("'" & ThisWorkbook.Name & "'!ContaVoci", sAnomalie)
+            sAnomalie = Application.Run("'" & ThisWorkbook.Name & "'!Abbrevia", sAnomalie, 12)
+        End If
+        On Error GoTo 0
+        If nAnomalie > 0 Then
+            If MsgBox("Prima di esportare ho trovato " & nAnomalie & " anomalie nei dati:" & _
+                      sAnomalie & vbCrLf & vbCrLf & "Esportare comunque il PDF?", _
+                      vbExclamation + vbYesNo + vbDefaultButton2, "Esporta PDF") <> vbYes Then
+                Exit Sub
+            End If
+        End If
+    End If
+
     '--- 4) Memorizzo lo stato iniziale e attivo la gestione errori ----------
     Set shIniziale = ThisWorkbook.ActiveSheet
     bScreenUpdOrig = Application.ScreenUpdating
@@ -129,6 +158,11 @@ Public Sub EsportaReportPDF()
     ImpostaPrintCommunication False
     For i = 0 To nFogli - 1
         Set ws = ThisWorkbook.Worksheets(aFogli(i))
+        ' fogli protetti: tolgo la protezione e la rimetto alla fine
+        If ws.ProtectContents Then
+            ws.Unprotect
+            colProtetti.Add ws.Name
+        End If
         With ws.PageSetup
             ' Area di stampa uniforme per i mesi (la Dashboard resta com'e')
             If AREA_STAMPA_MESI And ws.Name <> "Dashboard" Then
@@ -197,6 +231,9 @@ Uscita:
     If bRiordinato Then RipristinaOrdineSchede aOrdineOriginale
     ThisWorkbook.Activate
     If Not shIniziale Is Nothing Then shIniziale.Select   ' separa il gruppo
+    For Each vNome In colProtetti                         ' riprotegge
+        ThisWorkbook.Worksheets(CStr(vNome)).Protect
+    Next vNome
     Application.Cursor = xlDefault
     Application.EnableEvents = bEventsOrig
     Application.ScreenUpdating = bScreenUpdOrig
