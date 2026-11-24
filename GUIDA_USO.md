@@ -4,7 +4,7 @@
 
 | Foglio | A cosa serve |
 |---|---|
-| **Dashboard** | Riepilogo dell'anno: saldi mensili, residui di ferie e permessi, buoni pasto, grafico. L'anno è in **A1**. |
+| **Dashboard** | Riepilogo dell'anno: saldi mensili, residui di ferie e permessi, buoni pasto, grafico. L'anno è in **A1**. In **H4:I4** "Dati aggiornati al" mostra l'ultimo giorno (fino a oggi) con dati inseriti; diventa arancione se è più vecchio di 7 giorni. |
 | **Festività** | Festività dell'anno, calcolate da sole (Pasqua compresa). Il patrono è il 1° dicembre. La riga 15 è libera per un'eventuale festività in più. |
 | **Impostazioni** | Orario previsto per giorno della settimana, buono pasto, plafond annui, massimo L. 104 al mese, pausa minima. **Si modificano solo le celle gialle.** |
 | **Gennaio … Dicembre** | Cartellino del mese: timbrature, assenze, saldo. |
@@ -87,7 +87,7 @@ Calendario, Pasqua e intestazioni si aggiornano da soli.
 | `modProtezione` (ProteggiFogli, SbloccaFogli) | Da tenere |
 | `modBackup` (copia di sicurezza automatica) | Da tenere |
 | `modAggiornaFormule` | **Da rimuovere — non rieseguire**: riscriverebbe l'orario fisso e scollegherebbe Impostazioni |
-| `modImpostazioni`, `modAvvisi`, `modPausa`, `modGiorniMancanti` | Già eseguiti: si possono rimuovere |
+| `modImpostazioni`, `modAvvisi`, `modPausa`, `modGiorniMancanti`, `modAggiornato` | Già eseguiti: si possono rimuovere |
 
 ## Copie di sicurezza automatiche
 
