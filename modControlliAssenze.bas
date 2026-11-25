@@ -17,7 +17,8 @@ Option Explicit
 '   VerificaAssenze           -> elenca le anomalie presenti in tutti i mesi
 '                                (assenze, orari non in sequenza, pause piu'
 '                                brevi del minimo, L. 104 oltre il massimo
-'                                mensile, giorni lavorativi passati senza dati),
+'                                mensile, giorni lavorativi passati senza dati,
+'                                timbrature dispari),
 '                                senza modificare nulla. Utile da collegare a
 '                                un pulsante sulla Dashboard.
 '=============================================================================
@@ -148,7 +149,7 @@ Public Sub VerificaAssenze()
     n = ContaVoci(sElenco)
 
     If n = 0 Then
-        MsgBox "Nessuna anomalia nei 12 mesi (assenze, orari, pause, L. 104, giorni mancanti).", _
+        MsgBox "Nessuna anomalia nei 12 mesi (assenze, orari, pause, timbrature, L. 104, giorni mancanti).", _
                vbInformation, "Verifica assenze"
     Else
         MsgBox "Trovate " & n & " anomalie:" & Abbrevia(sElenco, 20), _
@@ -256,6 +257,20 @@ Public Function ElencoAnomalie() As String
                                     sElenco = sElenco & vbCrLf & "  - " & ws.Name & " " & GiornoRiga(ws, r) & _
                                               ": giorno lavorativo senza timbrature n" & ChrW(233) & " assenze"
                                 End If
+                            End If
+                        End If
+                    End If
+                End If
+
+                ' numero dispari di timbrature (escluso il giorno di oggi)
+                If lAnno > 0 And lMese >= 1 And lMese <= 12 Then
+                    vGiorno = ws.Cells(r, 2).Value
+                    If Not IsError(vGiorno) Then
+                        If IsNumeric(vGiorno) And Not IsEmpty(vGiorno) Then
+                            If DateSerial(lAnno, lMese, CLng(vGiorno)) < Date And _
+                               (Application.WorksheetFunction.Count(ws.Range(ws.Cells(r, 6), ws.Cells(r, 9))) Mod 2) = 1 Then
+                                sElenco = sElenco & vbCrLf & "  - " & ws.Name & " " & GiornoRiga(ws, r) & _
+                                          ": numero dispari di timbrature (manca un'entrata o un'uscita)"
                             End If
                         End If
                     End If

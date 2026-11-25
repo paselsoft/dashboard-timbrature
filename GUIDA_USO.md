@@ -47,6 +47,14 @@ Per una modifica straordinaria (per esempio aggiungere una nota a una cella): **
 
 Excel per iPad **non esegue le macro**. Si possono inserire timbrature e assenze e vedere saldi, colori e Dashboard. Importazione, PDF, verifica e nuovo anno vanno fatti dal PC.
 
+## Riepilogo delle anomalie
+
+- **Dashboard, "Anomalie nell'anno" (H5:I5):** totale delle anomalie di tutti i mesi: "nessuna" in verde, oppure il numero in rosso.
+- **Dashboard, colonna G "Anomalie":** quante anomalie ha ogni mese. Clicca sul nome del mese per andarci.
+- **Ogni mese, riepilogo "Anomalie" (riga 19):** il totale del mese.
+
+Sono solo formule: funzionano anche su iPad. Per l'elenco dettagliato (mese, giorno, tipo di problema) usa la macro **VerificaAssenze** dal PC.
+
 ## Cosa significano i colori
 
 | Dove | Colore | Significato |
@@ -56,7 +64,7 @@ Excel per iPad **non esegue le macro**. Si possono inserire timbrature e assenze
 | Usc 1 / Entr 2 | Rosso | Pausa più breve della pausa minima (Impostazioni) |
 | Giorno ed Entr/Usc | Giallo | Giorno lavorativo già passato senza timbrature né assenze (dimenticato?) |
 | Tipo Assenza e riepilogo L. 104 | Rosso | Giorni di L. 104 oltre il massimo mensile |
-| Riga del giorno | Evidenziata | Numero dispari di timbrature, oppure più di 10 ore lavorate |
+| Riga del giorno | Evidenziata | Numero dispari di timbrature, oppure più di 10 ore lavorate (le timbrature dispari dei giorni passati contano anche come anomalia) |
 | Dashboard, Residuo | Arancione | Sotto il 20% del plafond |
 | Dashboard, Residuo | Rosso | Esaurito (zero o negativo) |
 
@@ -97,7 +105,7 @@ Calendario, Pasqua e intestazioni si aggiornano da soli.
 | `modProtezione` (ProteggiFogli, SbloccaFogli) | Da tenere |
 | `modBackup` (copia di sicurezza automatica) | Da tenere |
 | `modAggiornaFormule` | **Da rimuovere — non rieseguire**: riscriverebbe l'orario fisso e scollegherebbe Impostazioni |
-| `modImpostazioni`, `modAvvisi`, `modPausa`, `modGiorniMancanti`, `modAggiornato`, `modFerieScadenza` | Già eseguiti: si possono rimuovere |
+| `modImpostazioni`, `modAvvisi`, `modPausa`, `modGiorniMancanti`, `modAggiornato`, `modFerieScadenza`, `modRiepilogoAnomalie` | Già eseguiti: si possono rimuovere |
 
 ## Copie di sicurezza automatiche
 
