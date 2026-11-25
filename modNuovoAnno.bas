@@ -12,8 +12,9 @@ Option Explicit
 '   2. calcola i valori da riportare:
 '        - saldo orario finale  = Residuo anno prec. + EXT - FLE dell'anno
 '          (Dashboard: C4 + C20 - D20), riportato per intero, anche negativo;
-'        - ferie residue        = residuo ferie anno prec. + residuo ferie
-'          dell'anno (Dashboard: K7 + K8), riportate tutte;
+'        - ferie residue        = ferie non godute DELL'ANNO (Dashboard: K8),
+'          riportate tutte; le ferie dell'anno precedente non godute entro
+'          il 30 giugno (K7) sono scadute e NON vengono riportate;
 '   3. mostra un riepilogo e chiede conferma;
 '   4. svuota timbrature (F:I), ore di assenza (E), tipi di assenza (N) e
 '      note di cella dei 12 fogli mensili (formule e formati restano);
@@ -33,7 +34,7 @@ Public Sub NuovoAnno()
     Dim wsDash As Worksheet, ws As Worksheet
     Dim vMesi As Variant, v As Variant
     Dim lAnno As Long, lNuovo As Long
-    Dim dSaldo As Double, dFerieRes As Double
+    Dim dSaldo As Double, dFerieRes As Double, dFerieScadute As Double
     Dim sNomeNuovo As String, sPercorsoNuovo As String, sPercorsoVecchio As String
     Dim sMsg As String
     Dim c As Range
@@ -92,7 +93,11 @@ Public Sub NuovoAnno()
     dSaldo = ValoreNumerico(wsDash.Range("C4")) + ValoreNumerico(wsDash.Range("C20")) _
              - ValoreNumerico(wsDash.Range("D20"))
     dSaldo = Round(dSaldo * 1440, 0) / 1440          ' arrotondo al minuto
-    dFerieRes = ValoreNumerico(wsDash.Range("K7")) + ValoreNumerico(wsDash.Range("K8"))
+    ' Ferie: si riporta solo il residuo dell'anno (K8). Il residuo dell'anno
+    ' precedente (K7) andava fruito entro il 30 giugno: e' scaduto.
+    dFerieRes = ValoreNumerico(wsDash.Range("K8"))
+    dFerieScadute = ValoreNumerico(wsDash.Range("K7"))
+    If dFerieScadute < 0 Then dFerieScadute = 0
 
     ' Nome del nuovo file: sostituisco l'anno nel nome, se c'e'
     sPercorsoVecchio = ThisWorkbook.FullName
@@ -114,7 +119,8 @@ Public Sub NuovoAnno()
     sMsg = "Passaggio dal " & lAnno & " al " & lNuovo & vbCrLf & vbCrLf & _
            "Valori riportati nel " & lNuovo & ":" & vbCrLf & _
            "  - Saldo orario (Residuo " & lAnno & "):  " & OreConSegno(dSaldo) & vbCrLf & _
-           "  - Ferie residue " & lAnno & ":  " & Format$(dFerieRes, "0") & " giorni" & vbCrLf & _
+           "  - Ferie residue " & lAnno & ":  " & Format$(dFerieRes, "0") & " giorni" & _
+           " (da fruire entro il 30/06/" & lNuovo & ")" & vbCrLf & _
            "  - Ferie " & lNuovo & " (plafond, invariato):  " & _
            Format$(ValoreNumerico(wsDash.Range("I8")), "0") & " giorni" & vbCrLf & vbCrLf & _
            "Verranno svuotati timbrature, assenze, tipi di assenza e note dei 12 mesi." & vbCrLf & vbCrLf & _
@@ -130,6 +136,11 @@ Public Sub NuovoAnno()
         sMsg = sMsg & vbCrLf & vbCrLf & "Nota: il saldo e' negativo. In Dashboard C4 Excel " & _
                "lo mostrera' come ##### (gli orari negativi non sono visualizzabili), " & _
                "ma i calcoli resteranno corretti."
+    End If
+    If dFerieScadute > 0 Then
+        sMsg = sMsg & vbCrLf & vbCrLf & "Nota: " & Format$(dFerieScadute, "0") & _
+               " giorni di ferie " & (lAnno - 1) & " non fruiti entro il 30/06/" & lAnno & _
+               " sono scaduti e NON vengono riportati."
     End If
     sMsg = sMsg & vbCrLf & vbCrLf & "Procedere?"
 

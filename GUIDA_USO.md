@@ -20,6 +20,16 @@
 
 Un giorno senza timbrature e senza assenze conta 0: i giorni futuri non falsano il saldo.
 
+## Ferie dell'anno precedente
+
+Le ferie non godute dell'anno precedente ("Ferie Anno precedente" in Dashboard, riga 7) vanno fruite **entro il 30 giugno**:
+
+- le ferie da gennaio a giugno si scalano **prima** dal residuo dell'anno precedente, poi dall'anno in corso;
+- le ferie da luglio in poi vanno **sempre** sull'anno in corso;
+- accanto al residuo compare "da fruire entro il 30/06/AAAA" (arancione) oppure, dopo il 30 giugno, "scadute il 30/06/AAAA" (rosso).
+
+A inizio anno **NuovoAnno** riporta solo le ferie non godute dell'anno che si chiude; quelle dell'anno precedente non fruite entro il 30 giugno sono scadute e non vengono riportate.
+
 ## Protezione dei fogli
 
 Tutti i fogli sono protetti **senza password**. Si possono modificare solo le celle da compilare:
@@ -68,7 +78,7 @@ All'apertura il file va da solo sul foglio del mese corrente se è dell'anno in 
 1. Completa le timbrature di dicembre e **salva**.
 2. Esegui **NuovoAnno** (Alt+F8) e controlla il riepilogo:
    - saldo orario riportato (tutto, anche negativo);
-   - ferie residue riportate (tutte).
+   - ferie residue dell'anno che si chiude (quelle dell'anno precedente non fruite entro il 30 giugno sono scadute).
 3. Conferma. Il file dell'anno concluso **resta invariato come archivio**. Il nuovo anno viene salvato come file nuovo (es. `..._2027.xlsm`) ed è quello aperto.
 4. Nel nuovo file apri **Impostazioni** e aggiorna, se cambiano: orario previsto, valore del buono pasto, plafond, massimo L. 104 al mese.
 5. Se cambia una festività locale, aggiornala nel foglio **Festività**.
@@ -87,7 +97,7 @@ Calendario, Pasqua e intestazioni si aggiornano da soli.
 | `modProtezione` (ProteggiFogli, SbloccaFogli) | Da tenere |
 | `modBackup` (copia di sicurezza automatica) | Da tenere |
 | `modAggiornaFormule` | **Da rimuovere — non rieseguire**: riscriverebbe l'orario fisso e scollegherebbe Impostazioni |
-| `modImpostazioni`, `modAvvisi`, `modPausa`, `modGiorniMancanti`, `modAggiornato` | Già eseguiti: si possono rimuovere |
+| `modImpostazioni`, `modAvvisi`, `modPausa`, `modGiorniMancanti`, `modAggiornato`, `modFerieScadenza` | Già eseguiti: si possono rimuovere |
 
 ## Copie di sicurezza automatiche
 
