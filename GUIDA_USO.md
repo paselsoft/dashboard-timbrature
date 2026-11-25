@@ -113,7 +113,7 @@ Calendario, Pasqua e intestazioni si aggiornano da soli.
 | `modProtezione` (ProteggiFogli, SbloccaFogli) | Da tenere |
 | `modBackup` (copia di sicurezza automatica) | Da tenere |
 | `modAggiornaFormule` | **Da rimuovere — non rieseguire**: riscriverebbe l'orario fisso e scollegherebbe Impostazioni |
-| `modImpostazioni`, `modAvvisi`, `modPausa`, `modGiorniMancanti`, `modAggiornato`, `modFerieScadenza`, `modRiepilogoAnomalie`, `modFerieFEPeLimite` | Già eseguiti: si possono rimuovere |
+| `modImpostazioni`, `modAvvisi`, `modPausa`, `modGiorniMancanti`, `modAggiornato`, `modFerieScadenza`, `modRiepilogoAnomalie`, `modFerieFEPeLimite`, `modMenuTipiAssenza` | Già eseguiti: si possono rimuovere |
 
 ## Copie di sicurezza automatiche
 
