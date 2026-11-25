@@ -14,6 +14,23 @@ Option Explicit
 '   - legge correttamente file con fine riga Windows, Mac o Unix e con BOM;
 '   - salta (e conta) gli orari non validi invece di fermarsi;
 '   - ignora i giorni che non esistono nel mese (es. 31 in un mese di 30).
+'
+' Versione 3 - importa anche le ASSENZE con le ore (righe del portale come
+' "9:00Ferie dalle 07:00 alle 16:00"):
+'     Ferie                        -> Ferie
+'     Ferie Esercizio Precedente   -> Ferie anno prec.
+'     Malattia                     -> Malattia
+'     ... VISITE ...               -> Art. 23 (Visite)      + ore in Assenze
+'     PERMESSO PERSONALE / ART. 25 -> Art. 25 (Motivi pers.) + ore in Assenze
+'     ART. 34 / RECUPERO           -> Art. 34 (A recupero)  + ore in Assenze
+'     ... 104 ...                  -> L. 104
+'   Extrapresenza, Flessibilita' e Ore non autorizzate vengono ignorate
+'   (le calcola il file). Le richieste senza ore (es. ferie pianificate)
+'   non vengono importate.
+' - non cancella orari gia' presenti se il portale ne ha di meno (file .txt
+'   salvato a giornata in corso): il giorno viene solo segnalato;
+' - segnala i giorni con piu' di 4 timbrature (ne importa 4) e i
+'   giustificativi non riconosciuti.
 '=============================================================================
 
 Sub ImportaDaPortaleWeb()
@@ -44,6 +61,11 @@ Sub ImportaDaPortaleWeb()
     Dim dOrario As Date
     Dim bCompletato As Boolean
     Dim lErr As Long, sErr As String
+    Dim regExGiust As Object, mGiust As Object
+    Dim bOrariFatti As Boolean, nGiaPresenti As Long
+    Dim sDesc As String, sTipo As String, bConOre As Boolean
+    Dim sPrecedente As String, sTipoImportato As String
+    Dim countAssenze As Long, sAvvisi As String
 
     Set ws = ActiveSheet
 
@@ -67,6 +89,10 @@ Sub ImportaDaPortaleWeb()
     Set regExGiorno = CreateObject("VBScript.RegExp")
     regExGiorno.Pattern = "^([1-9]|[12][0-9]|3[01])\s+(Lun|Mar|Mer|Gio|Ven|Sab|Dom)"
     regExGiorno.IgnoreCase = True
+
+    ' Riga di un giustificativo con le ore (es. "6:00PERMESSO PERSONALE ...")
+    Set regExGiust = CreateObject("VBScript.RegExp")
+    regExGiust.Pattern = "^(\d{1,2}):(\d{2})\s*([A-Za-z].*)$"
 
     bScreenUpd = Application.ScreenUpdating
     eraProtetto = ws.ProtectContents
@@ -98,19 +124,22 @@ Sub ImportaDaPortaleWeb()
     '--- Analisi riga per riga -------------------------------------------------
     For k = LBound(vRighe) To UBound(vRighe)
         lineText = Trim$(Replace(vRighe(k), Chr(160), " "))
+        lineText = Trim$(Replace(lineText, vbTab, " "))
 
-        ' 1. Riga con l'intestazione del giorno?
+        ' 1. Intestazione del giorno: da qui in poi le righe sono di quel giorno
         If regExGiorno.Test(lineText) Then
             giornoCorrente = CLng(regExGiorno.Execute(lineText)(0).SubMatches(0))
+            bOrariFatti = False
+            sTipoImportato = ""
+            GoTo RigaSuccessiva
         End If
+        If giornoCorrente = 0 Then GoTo RigaSuccessiva
+        rowDest = RIGA_OFFSET + giornoCorrente
 
-        ' 2. Pulizia da spazi, tabulazioni e spazi non-breaking
+        ' 2. Riga di soli orari "hh:mmhh:mm..." (la prima del giorno)
         cleanedLine = Replace(lineText, " ", "")
-        cleanedLine = Replace(cleanedLine, vbTab, "")
-
-        ' 3. Riga di soli orari "hh:mmhh:mm..." (lunghezza multipla di 5)?
-        If giornoCorrente > 0 And Len(cleanedLine) >= 5 And Len(cleanedLine) Mod 5 = 0 Then
-
+        isTimeLine = False
+        If Not bOrariFatti And Len(cleanedLine) >= 5 And Len(cleanedLine) Mod 5 = 0 Then
             isTimeLine = True
             For i = 1 To Len(cleanedLine)
                 If Not (Mid$(cleanedLine, i, 1) Like "[0-9]" Or Mid$(cleanedLine, i, 1) = ":") Then
@@ -118,40 +147,87 @@ Sub ImportaDaPortaleWeb()
                     Exit For
                 End If
             Next i
+        End If
 
-            If isTimeLine Then
-                rowDest = RIGA_OFFSET + giornoCorrente
+        If isTimeLine Then
+            bOrariFatti = True
+            If Len(Trim$(ws.Cells(rowDest, 2).Text)) = 0 Then
+                sScartati = sScartati & vbCrLf & "  - giorno " & giornoCorrente & " (non esiste nel mese)"
+                countScartati = countScartati + 1
+                GoTo RigaSuccessiva
+            End If
 
-                ' giorno inesistente nel mese (colonna B vuota): si salta
-                If Len(Trim$(ws.Cells(rowDest, 2).Text)) = 0 Then
-                    sScartati = sScartati & vbCrLf & "  - giorno " & giornoCorrente & " (non esiste nel mese)"
-                    countScartati = countScartati + 1
+            numTimbrature = Len(cleanedLine) \ 5
+            nGiaPresenti = Application.WorksheetFunction.Count( _
+                           ws.Range(ws.Cells(rowDest, COL_ENTR1), ws.Cells(rowDest, COL_USC2)))
+            If numTimbrature < nGiaPresenti Then
+                ' file salvato a giornata in corso: non cancello orari gia' inseriti
+                sAvvisi = sAvvisi & vbCrLf & "  - giorno " & giornoCorrente & ": il portale ha " & _
+                          numTimbrature & " timbrature, nel file ce ne sono " & nGiaPresenti & _
+                          " (orari NON modificati)"
+                GoTo RigaSuccessiva
+            End If
+            If numTimbrature > MAX_TIMBRATURE Then
+                sAvvisi = sAvvisi & vbCrLf & "  - giorno " & giornoCorrente & ": " & numTimbrature & _
+                          " timbrature, importate le prime " & MAX_TIMBRATURE & " (sistemale a mano)"
+                numTimbrature = MAX_TIMBRATURE
+            End If
+
+            ws.Range(ws.Cells(rowDest, COL_ENTR1), ws.Cells(rowDest, COL_USC2)).ClearContents
+            For i = 0 To numTimbrature - 1
+                orarioStr = Mid$(cleanedLine, (i * 5) + 1, 5)
+                If LeggiOrario(orarioStr, dOrario) Then
+                    ws.Cells(rowDest, COL_ENTR1 + i).Value = dOrario
                 Else
-                    ' pulisce i vecchi orari del giorno
-                    ws.Range(ws.Cells(rowDest, COL_ENTR1), ws.Cells(rowDest, COL_USC2)).ClearContents
-
-                    numTimbrature = Len(cleanedLine) \ 5
-                    If numTimbrature > MAX_TIMBRATURE Then numTimbrature = MAX_TIMBRATURE
-
-                    For i = 0 To numTimbrature - 1
-                        orarioStr = Mid$(cleanedLine, (i * 5) + 1, 5)
-                        If LeggiOrario(orarioStr, dOrario) Then
-                            ws.Cells(rowDest, COL_ENTR1 + i).Value = dOrario
-                        Else
-                            sScartati = sScartati & vbCrLf & "  - giorno " & giornoCorrente & _
-                                        ": orario non valido """ & orarioStr & """"
-                            countScartati = countScartati + 1
-                        End If
-                    Next i
-
-                    ws.Range(ws.Cells(rowDest, COL_ENTR1), ws.Cells(rowDest, COL_USC2)).NumberFormat = "hh:mm"
-                    countTrovati = countTrovati + 1
+                    sScartati = sScartati & vbCrLf & "  - giorno " & giornoCorrente & _
+                                ": orario non valido " & Chr(34) & orarioStr & Chr(34)
+                    countScartati = countScartati + 1
                 End If
+            Next i
+            ws.Range(ws.Cells(rowDest, COL_ENTR1), ws.Cells(rowDest, COL_USC2)).NumberFormat = "hh:mm"
+            countTrovati = countTrovati + 1
+            GoTo RigaSuccessiva
+        End If
 
-                ' evita sovrascritture accidentali fino al prossimo giorno
-                giornoCorrente = 0
+        ' 3. Giustificativo con le ore (es. "9:00Ferie dalle 07:00 alle 16:00")
+        If regExGiust.Test(lineText) Then
+            Set mGiust = regExGiust.Execute(lineText)(0)
+            sDesc = mGiust.SubMatches(2)
+            If InStr(1, sDesc, " dalle ", vbTextCompare) > 0 Then
+                sDesc = Left$(sDesc, InStr(1, sDesc, " dalle ", vbTextCompare) - 1)
+            End If
+            sDesc = Trim$(sDesc)
+            sTipo = MappaGiustificativo(sDesc, bConOre)
+
+            If sTipo = "?" Then
+                sAvvisi = sAvvisi & vbCrLf & "  - giorno " & giornoCorrente & _
+                          ": giustificativo non riconosciuto " & Chr(34) & sDesc & Chr(34)
+            ElseIf Len(sTipo) > 0 Then
+                If Len(Trim$(ws.Cells(rowDest, 2).Text)) > 0 Then
+                    If Len(sTipoImportato) > 0 And sTipoImportato <> sTipo Then
+                        sAvvisi = sAvvisi & vbCrLf & "  - giorno " & giornoCorrente & _
+                                  ": due giustificativi (" & sTipoImportato & ", " & sTipo & _
+                                  "), tenuto l'ultimo: verifica"
+                    End If
+                    sPrecedente = Trim$(CStr(ws.Cells(rowDest, 14).Value))
+                    If Len(sPrecedente) > 0 And sPrecedente <> sTipo Then
+                        sAvvisi = sAvvisi & vbCrLf & "  - giorno " & giornoCorrente & ": " & _
+                                  sPrecedente & " sostituito con " & sTipo
+                    End If
+                    ws.Cells(rowDest, 14).Value = sTipo
+                    If bConOre Then
+                        ws.Cells(rowDest, 5).Value = TimeSerial(CLng(mGiust.SubMatches(0)), _
+                                                                CLng(mGiust.SubMatches(1)), 0)
+                    Else
+                        ws.Cells(rowDest, 5).ClearContents   ' giornata intera: niente ore
+                    End If
+                    sTipoImportato = sTipo
+                    countAssenze = countAssenze + 1
+                End If
             End If
         End If
+
+RigaSuccessiva:
     Next k
     bCompletato = True
 
@@ -164,16 +240,13 @@ Uscita:
     On Error GoTo 0
 
     If bCompletato Then
-        If countScartati > 0 Then
-            MsgBox "Importazione completata nel foglio '" & ws.Name & "'." & vbCrLf & _
-                   "Giorni elaborati: " & countTrovati & vbCrLf & vbCrLf & _
-                   "Elementi saltati (" & countScartati & "):" & sScartati, _
-                   vbExclamation, "Importa dal portale"
-        Else
-            MsgBox "Importazione completata!" & vbCrLf & _
-                   "Elaborati " & countTrovati & " giorni nel foglio '" & ws.Name & "'.", _
-                   vbInformation, "Importa dal portale"
-        End If
+        MsgBox "Importazione completata nel foglio '" & ws.Name & "'." & vbCrLf & _
+               "Giorni con timbrature: " & countTrovati & vbCrLf & _
+               "Assenze importate: " & countAssenze & _
+               IIf(countScartati > 0, vbCrLf & vbCrLf & "Elementi saltati (" & countScartati & "):" & sScartati, "") & _
+               IIf(Len(sAvvisi) > 0, vbCrLf & vbCrLf & "Da verificare:" & sAvvisi, ""), _
+               IIf(countScartati > 0 Or Len(sAvvisi) > 0, vbExclamation, vbInformation), _
+               "Importa dal portale"
     ElseIf lErr <> 0 Then
         MsgBox "Importazione interrotta." & vbCrLf & vbCrLf & _
                "Errore " & lErr & ": " & sErr & vbCrLf & _
@@ -187,6 +260,37 @@ GestioneErrori:
     sErr = Err.Description
     Resume Uscita
 End Sub
+
+
+'-----------------------------------------------------------------------------
+' Tipo Assenza del file corrispondente alla descrizione del portale.
+' ""  = da ignorare (calcolato dal file), "?" = non riconosciuto.
+' bConOre = True per i permessi a ore (le ore vanno in Assenze).
+'-----------------------------------------------------------------------------
+Private Function MappaGiustificativo(ByVal sDesc As String, ByRef bConOre As Boolean) As String
+    Dim u As String
+    u = UCase$(sDesc)
+    bConOre = False
+    If u Like "EXTRAPRESENZA*" Or u Like "FLESSIBILIT*" Or InStr(u, "NON AUTORIZZAT") > 0 Then
+        MappaGiustificativo = ""
+    ElseIf InStr(u, "ESERCIZIO PRECEDENTE") > 0 Then
+        MappaGiustificativo = "Ferie anno prec."
+    ElseIf u Like "FERIE*" Then
+        MappaGiustificativo = "Ferie"
+    ElseIf u Like "MALATTIA*" Then
+        MappaGiustificativo = "Malattia"
+    ElseIf InStr(u, "VISIT") > 0 Then
+        MappaGiustificativo = "Art. 23 (Visite)": bConOre = True
+    ElseIf InStr(u, "ART. 25") > 0 Or InStr(u, "PERSONAL") > 0 Then
+        MappaGiustificativo = "Art. 25 (Motivi pers.)": bConOre = True
+    ElseIf InStr(u, "ART. 34") > 0 Or InStr(u, "RECUPER") > 0 Then
+        MappaGiustificativo = "Art. 34 (A recupero)": bConOre = True
+    ElseIf InStr(u, "104") > 0 Then
+        MappaGiustificativo = "L. 104"
+    Else
+        MappaGiustificativo = "?"
+    End If
+End Function
 
 
 '-----------------------------------------------------------------------------

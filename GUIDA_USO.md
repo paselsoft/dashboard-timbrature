@@ -38,13 +38,34 @@ A inizio anno **NuovoAnno** riporta solo le ferie non godute dell'anno che si ch
 
 Nei giorni **senza rientro** (Entr 2/Usc 2 vuoti) l'extrapresenza oltre il limite di Impostazioni (riga 27, 0:30) non viene conteggiata, come le "Ore non autorizzate" (ONA) del portale. Inserisci sempre l'orario reale: il file taglia da solo l'eccedenza. Il Più(EXT) di quel giorno diventa arancione e il riepilogo del mese mostra le "Ore non autorizzate" (riga 21). Nei giorni con rientro non c'è limite. 0:00 = nessun limite.
 
+## Goduto e pianificato
+
+In Dashboard, per ferie e permessi:
+
+- **Goduto** = giorni/ore fino a oggi;
+- **Pianificato** = giorni/ore già inseriti nei giorni futuri (es. ferie di dicembre);
+- **Residuo** = Plafond − Goduto − Pianificato (quello che resta da programmare).
+
+## Verifica mensile con il cartellino
+
+Nel riepilogo di ogni mese (righe 23–27) scrivi i tre totali del cartellino del portale: **EXT**, **FLE** e **Buoni pasto**. Se un valore non coincide con quello del file, la cella diventa rossa, l'esito è "diverso" e compare un'anomalia in Dashboard. Con tutti e tre uguali l'esito è "OK" (verde). A inizio anno NuovoAnno svuota questi valori.
+
+## Importazione dal portale
+
+Il pulsante **Importa** legge il file .txt copiato dal portale e compila:
+
+- le **timbrature** (fino a 4 per giorno; se ce ne sono di più le segnala);
+- le **assenze**: Ferie, Ferie anno prec. (FEP), Malattia, L. 104 e i permessi a ore (Art. 23, 25, 34) con le ore in "Assenze".
+
+Non cancella orari già presenti se il portale ne ha di meno (file salvato a giornata in corso) e non importa le richieste future (ferie pianificate): queste restano da inserire a mano. Alla fine mostra cosa ha importato e cosa va verificato.
+
 ## Protezione dei fogli
 
 Tutti i fogli sono protetti **senza password**. Si possono modificare solo le celle da compilare:
 
 | Foglio | Celle modificabili |
 |---|---|
-| Mesi | Assenze, Entr/Usc, Tipo Assenza |
+| Mesi | Assenze, Entr/Usc, Tipo Assenza, totali del cartellino (Q24:Q26) |
 | Impostazioni | Le celle gialle |
 | Dashboard | Residuo anno precedente (C4) e Ferie anno precedente (I7) |
 | Festività | La riga libera 15 |
@@ -113,7 +134,7 @@ Calendario, Pasqua e intestazioni si aggiornano da soli.
 | `modProtezione` (ProteggiFogli, SbloccaFogli) | Da tenere |
 | `modBackup` (copia di sicurezza automatica) | Da tenere |
 | `modAggiornaFormule` | **Da rimuovere — non rieseguire**: riscriverebbe l'orario fisso e scollegherebbe Impostazioni |
-| `modImpostazioni`, `modAvvisi`, `modPausa`, `modGiorniMancanti`, `modAggiornato`, `modFerieScadenza`, `modRiepilogoAnomalie`, `modFerieFEPeLimite`, `modMenuTipiAssenza` | Già eseguiti: si possono rimuovere |
+| `modImpostazioni`, `modAvvisi`, `modPausa`, `modGiorniMancanti`, `modAggiornato`, `modFerieScadenza`, `modRiepilogoAnomalie`, `modFerieFEPeLimite`, `modMenuTipiAssenza`, `modGodutoVerifica` | Già eseguiti: si possono rimuovere |
 
 ## Copie di sicurezza automatiche
 

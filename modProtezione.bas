@@ -7,8 +7,9 @@ Option Explicit
 ' ProteggiFogli  -> protegge (SENZA password) Dashboard, Festivita',
 '                   Impostazioni e i 12 mesi, lasciando modificabili solo le
 '                   celle da compilare:
-'                     - mesi:          Assenze, Entr/Usc (E11:I41) e
-'                                      Tipo Assenza (N11:N41)
+'                     - mesi:          Assenze, Entr/Usc (E11:I41),
+'                                      Tipo Assenza (N11:N41) e i totali
+'                                      del cartellino (Q24:Q26)
 '                     - Impostazioni:  le celle gialle
 '                     - Dashboard:     Residuo anno precedente (C4) e
 '                                      Ferie anno precedente (I7)
@@ -52,7 +53,7 @@ Public Sub ProteggiFogli()
             sMancanti = sMancanti & " " & v
         Else
             sFoglioErr = ws.Name
-            ProteggiConCelleLibere ws, "E11:I41,N11:N41"
+            ProteggiConCelleLibere ws, "E11:I41,N11:N41,Q24:Q26"
             nFogli = nFogli + 1
         End If
     Next v

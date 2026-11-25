@@ -303,6 +303,12 @@ Public Function ElencoAnomalie() As String
                 If sTipo = "L. 104" Then nL104 = nL104 + 1
             Next r
 
+            ' totali del mese diversi da quelli scritti dal cartellino (riepilogo Q27)
+            If CStr(ws.Range("Q27").Text) = "diverso" Then
+                sElenco = sElenco & vbCrLf & "  - " & ws.Name & ": totali diversi dal cartellino " & _
+                          "(EXT/FLE/buoni, riepilogo righe 24-26)"
+            End If
+
             If nL104 > lMaxL104 Then
                 sElenco = sElenco & vbCrLf & "  - " & ws.Name & ": " & nL104 & _
                           " giorni di L. 104 (massimo " & lMaxL104 & ")"
@@ -310,13 +316,13 @@ Public Function ElencoAnomalie() As String
         End If
     Next v
 
-    ' ferie anno precedente usate oltre il residuo (Dashboard: J7 > I7)
+    ' ferie anno precedente usate o pianificate oltre il residuo (Dashboard: K7 < 0)
     On Error Resume Next
     With ThisWorkbook.Worksheets("Dashboard")
-        If IsNumeric(.Range("I7").Value) And IsNumeric(.Range("J7").Value) Then
-            If CDbl(.Range("J7").Value) > CDbl(.Range("I7").Value) Then
-                sElenco = sElenco & vbCrLf & "  - Dashboard: Ferie anno prec. usate (" & .Range("J7").Text & _
-                          ") oltre il residuo disponibile (" & .Range("I7").Text & ")"
+        If IsNumeric(.Range("K7").Value) And Not IsEmpty(.Range("K7").Value) Then
+            If CDbl(.Range("K7").Value) < 0 Then
+                sElenco = sElenco & vbCrLf & "  - Dashboard: Ferie anno prec. oltre il residuo disponibile (" & _
+                          .Range("I7").Text & ")"
             End If
         End If
     End With

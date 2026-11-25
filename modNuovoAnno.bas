@@ -17,8 +17,9 @@ Option Explicit
 '          la scadenza (Impostazioni, predefinita 30 giugno; K7) sono scadute
 '          e NON vengono riportate;
 '   3. mostra un riepilogo e chiede conferma;
-'   4. svuota timbrature (F:I), ore di assenza (E), tipi di assenza (N) e
-'      note di cella dei 12 fogli mensili (formule e formati restano);
+'   4. svuota timbrature (F:I), ore di assenza (E), tipi di assenza (N),
+'      totali del cartellino (Q24:Q26) e note di cella dei 12 fogli mensili
+'      (formule e formati restano);
 '   5. scrive in Dashboard: anno + 1 (A1), saldo riportato (C4),
 '      ferie residue come plafond "Ferie Anno <anno>" (I7);
 '   6. salva con un NUOVO nome (es. ..._2026.xlsm -> ..._2027.xlsm).
@@ -176,6 +177,10 @@ Public Sub NuovoAnno()
             If Not c.HasFormula Then
                 If Not IsEmpty(c.Value) Then c.ClearContents
             End If
+        Next c
+        ' totali del cartellino scritti a mano (verifica mensile, Q24:Q26)
+        For Each c In ws.Range("Q24:Q26").Cells
+            If Not c.HasFormula Then c.ClearContents
         Next c
         ' note/commenti sui giorni dell'anno concluso
         ws.Range("B" & RIGA_PRIMA & ":N" & RIGA_ULTIMA).ClearComments
