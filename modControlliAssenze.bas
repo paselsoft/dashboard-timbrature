@@ -176,6 +176,7 @@ Public Function ElencoAnomalie() As String
     Dim vG As Variant, vH As Variant
     Dim lAnno As Long, lMese As Long, vGiorno As Variant, vTarget As Variant
     Dim dGiorno As Date
+    Dim dScadFEP As Date, lGgFEP As Long, lMmFEP As Long, vTmp As Variant
 
     ' massimo mensile L. 104 dal foglio Impostazioni (se c'e'), altrimenti 3
     lMaxL104 = 3
@@ -199,6 +200,16 @@ Public Function ElencoAnomalie() As String
     On Error Resume Next
     lAnno = CLng(ThisWorkbook.Worksheets("Dashboard").Range("A1").Value)
     On Error GoTo 0
+
+    ' scadenza delle ferie anno precedente (Impostazioni), predefinita 30/06
+    lGgFEP = 30: lMmFEP = 6
+    On Error Resume Next
+    vTmp = Application.Evaluate("FEP_Scadenza_Giorno")
+    If Not IsError(vTmp) Then If IsNumeric(vTmp) Then lGgFEP = CLng(vTmp)
+    vTmp = Application.Evaluate("FEP_Scadenza_Mese")
+    If Not IsError(vTmp) Then If IsNumeric(vTmp) Then lMmFEP = CLng(vTmp)
+    On Error GoTo 0
+    If lAnno > 0 Then dScadFEP = DateSerial(lAnno, lMmFEP, lGgFEP)
 
     For Each v In vMesi
         Set ws = OttieniFoglio(CStr(v))
@@ -276,6 +287,19 @@ Public Function ElencoAnomalie() As String
                     End If
                 End If
 
+                ' ferie anno precedente usate dopo la scadenza
+                If sTipo = "Ferie anno prec." And lAnno > 0 And lMese >= 1 And lMese <= 12 Then
+                    vGiorno = ws.Cells(r, 2).Value
+                    If Not IsError(vGiorno) Then
+                        If IsNumeric(vGiorno) And Not IsEmpty(vGiorno) Then
+                            If DateSerial(lAnno, lMese, CLng(vGiorno)) > dScadFEP Then
+                                sElenco = sElenco & vbCrLf & "  - " & ws.Name & " " & GiornoRiga(ws, r) & _
+                                          ": Ferie anno prec. dopo la scadenza del " & Format$(dScadFEP, "dd/mm/yyyy")
+                            End If
+                        End If
+                    End If
+                End If
+
                 If sTipo = "L. 104" Then nL104 = nL104 + 1
             Next r
 
@@ -285,6 +309,18 @@ Public Function ElencoAnomalie() As String
             End If
         End If
     Next v
+
+    ' ferie anno precedente usate oltre il residuo (Dashboard: J7 > I7)
+    On Error Resume Next
+    With ThisWorkbook.Worksheets("Dashboard")
+        If IsNumeric(.Range("I7").Value) And IsNumeric(.Range("J7").Value) Then
+            If CDbl(.Range("J7").Value) > CDbl(.Range("I7").Value) Then
+                sElenco = sElenco & vbCrLf & "  - Dashboard: Ferie anno prec. usate (" & .Range("J7").Text & _
+                          ") oltre il residuo disponibile (" & .Range("I7").Text & ")"
+            End If
+        End If
+    End With
+    On Error GoTo 0
 
     ElencoAnomalie = sElenco
 End Function

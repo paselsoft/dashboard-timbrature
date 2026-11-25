@@ -14,7 +14,7 @@
 | Caso | Colonne da compilare |
 |---|---|
 | Giorno lavorato | Entr 1 / Usc 1 (ed eventualmente Entr 2 / Usc 2), oppure pulsante **Importa** dal portale |
-| **Ferie, Malattia, L. 104** (giornata intera) | Solo **Tipo Assenza**. "Assenze" resta vuota: l'orario previsto è coperto in automatico |
+| **Ferie, Ferie anno prec., Malattia, L. 104** (giornata intera) | Solo **Tipo Assenza**. "Assenze" resta vuota: l'orario previsto è coperto in automatico |
 | **Art. 23, Art. 25, Art. 34** (permessi a ore) | **Assenze** (ore di permesso) **e** Tipo Assenza. Per l'intera giornata, le ore previste di quel giorno |
 | Sabato, domenica, festivi | Nulla (salvo timbrature straordinarie) |
 
@@ -22,13 +22,21 @@ Un giorno senza timbrature e senza assenze conta 0: i giorni futuri non falsano 
 
 ## Ferie dell'anno precedente
 
-Le ferie non godute dell'anno precedente ("Ferie Anno precedente" in Dashboard, riga 7) vanno fruite **entro il 30 giugno**:
+Come sul portale, le ferie hanno due tipi:
 
-- le ferie da gennaio a giugno si scalano **prima** dal residuo dell'anno precedente, poi dall'anno in corso;
-- le ferie da luglio in poi vanno **sempre** sull'anno in corso;
-- accanto al residuo compare "da fruire entro il 30/06/AAAA" (arancione) oppure, dopo il 30 giugno, "scadute il 30/06/AAAA" (rosso).
+- **Ferie**: ferie dell'anno in corso (codice portale **FE**);
+- **Ferie anno prec.**: ferie dell'anno precedente (codice portale **FEP**). Usa questo tipo nei giorni che il cartellino segna FEP.
 
-A inizio anno **NuovoAnno** riporta solo le ferie non godute dell'anno che si chiude; quelle dell'anno precedente non fruite entro il 30 giugno sono scadute e non vengono riportate.
+In Dashboard la riga "Ferie Anno precedente" conta i giorni "Ferie anno prec.", la riga "Ferie Anno corrente" i giorni "Ferie". Le ferie dell'anno precedente vanno fruite entro la **scadenza** indicata in Impostazioni (righe 28–29, predefinita 30 giugno):
+
+- accanto al residuo compare "da fruire entro il …" (arancione) oppure, dopo la scadenza, "scadute il …" (rosso);
+- un giorno "Ferie anno prec." dopo la scadenza, o più giorni del residuo disponibile, è un'anomalia.
+
+A inizio anno **NuovoAnno** riporta solo le ferie non godute dell'anno che si chiude.
+
+## Extrapresenza massima nei giorni senza rientro
+
+Nei giorni **senza rientro** (Entr 2/Usc 2 vuoti) l'extrapresenza oltre il limite di Impostazioni (riga 27, 0:30) non viene conteggiata, come le "Ore non autorizzate" (ONA) del portale. Inserisci sempre l'orario reale: il file taglia da solo l'eccedenza. Il Più(EXT) di quel giorno diventa arancione e il riepilogo del mese mostra le "Ore non autorizzate" (riga 21). Nei giorni con rientro non c'è limite. 0:00 = nessun limite.
 
 ## Protezione dei fogli
 
@@ -105,7 +113,7 @@ Calendario, Pasqua e intestazioni si aggiornano da soli.
 | `modProtezione` (ProteggiFogli, SbloccaFogli) | Da tenere |
 | `modBackup` (copia di sicurezza automatica) | Da tenere |
 | `modAggiornaFormule` | **Da rimuovere — non rieseguire**: riscriverebbe l'orario fisso e scollegherebbe Impostazioni |
-| `modImpostazioni`, `modAvvisi`, `modPausa`, `modGiorniMancanti`, `modAggiornato`, `modFerieScadenza`, `modRiepilogoAnomalie` | Già eseguiti: si possono rimuovere |
+| `modImpostazioni`, `modAvvisi`, `modPausa`, `modGiorniMancanti`, `modAggiornato`, `modFerieScadenza`, `modRiepilogoAnomalie`, `modFerieFEPeLimite` | Già eseguiti: si possono rimuovere |
 
 ## Copie di sicurezza automatiche
 

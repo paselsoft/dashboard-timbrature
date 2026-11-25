@@ -14,7 +14,8 @@ Option Explicit
 '          (Dashboard: C4 + C20 - D20), riportato per intero, anche negativo;
 '        - ferie residue        = ferie non godute DELL'ANNO (Dashboard: K8),
 '          riportate tutte; le ferie dell'anno precedente non godute entro
-'          il 30 giugno (K7) sono scadute e NON vengono riportate;
+'          la scadenza (Impostazioni, predefinita 30 giugno; K7) sono scadute
+'          e NON vengono riportate;
 '   3. mostra un riepilogo e chiede conferma;
 '   4. svuota timbrature (F:I), ore di assenza (E), tipi di assenza (N) e
 '      note di cella dei 12 fogli mensili (formule e formati restano);
@@ -35,6 +36,7 @@ Public Sub NuovoAnno()
     Dim vMesi As Variant, v As Variant
     Dim lAnno As Long, lNuovo As Long
     Dim dSaldo As Double, dFerieRes As Double, dFerieScadute As Double
+    Dim sScad As String, vG As Variant, vM As Variant
     Dim sNomeNuovo As String, sPercorsoNuovo As String, sPercorsoVecchio As String
     Dim sMsg As String
     Dim c As Range
@@ -99,6 +101,16 @@ Public Sub NuovoAnno()
     dFerieScadute = ValoreNumerico(wsDash.Range("K7"))
     If dFerieScadute < 0 Then dFerieScadute = 0
 
+    ' scadenza ferie anno precedente (Impostazioni), predefinita 30/06
+    sScad = "30/06"
+    On Error Resume Next
+    vG = Application.Evaluate("FEP_Scadenza_Giorno")
+    vM = Application.Evaluate("FEP_Scadenza_Mese")
+    If Not IsError(vG) And Not IsError(vM) Then
+        If IsNumeric(vG) And IsNumeric(vM) Then sScad = Format$(CLng(vG), "00") & "/" & Format$(CLng(vM), "00")
+    End If
+    On Error GoTo GestioneErrori
+
     ' Nome del nuovo file: sostituisco l'anno nel nome, se c'e'
     sPercorsoVecchio = ThisWorkbook.FullName
     If InStr(1, ThisWorkbook.Name, CStr(lAnno)) > 0 Then
@@ -120,7 +132,7 @@ Public Sub NuovoAnno()
            "Valori riportati nel " & lNuovo & ":" & vbCrLf & _
            "  - Saldo orario (Residuo " & lAnno & "):  " & OreConSegno(dSaldo) & vbCrLf & _
            "  - Ferie residue " & lAnno & ":  " & Format$(dFerieRes, "0") & " giorni" & _
-           " (da fruire entro il 30/06/" & lNuovo & ")" & vbCrLf & _
+           " (da fruire entro il " & sScad & "/" & lNuovo & ")" & vbCrLf & _
            "  - Ferie " & lNuovo & " (plafond, invariato):  " & _
            Format$(ValoreNumerico(wsDash.Range("I8")), "0") & " giorni" & vbCrLf & vbCrLf & _
            "Verranno svuotati timbrature, assenze, tipi di assenza e note dei 12 mesi." & vbCrLf & vbCrLf & _
@@ -139,7 +151,7 @@ Public Sub NuovoAnno()
     End If
     If dFerieScadute > 0 Then
         sMsg = sMsg & vbCrLf & vbCrLf & "Nota: " & Format$(dFerieScadute, "0") & _
-               " giorni di ferie " & (lAnno - 1) & " non fruiti entro il 30/06/" & lAnno & _
+               " giorni di ferie " & (lAnno - 1) & " non fruiti entro il " & sScad & "/" & lAnno & _
                " sono scaduti e NON vengono riportati."
     End If
     sMsg = sMsg & vbCrLf & vbCrLf & "Procedere?"
