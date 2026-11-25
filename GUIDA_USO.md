@@ -57,7 +57,7 @@ Il pulsante **Importa** legge il file .txt copiato dal portale e compila:
 - le **timbrature**: fino a 4 per giorno. Con **più di 4** (es. uscita e rientro per una visita nel pomeriggio) le coppie del pomeriggio vengono accorpate in una sola con lo stesso tempo lavorato: Entr 2 = Usc 2 meno il lavorato del pomeriggio, e gli orari reali vanno in una nota sulla cella Entr 2. Esempio: 07:38 13:38 14:08 14:15 15:55 17:08 → 07:38 13:38 **15:48** 17:08 (pomeriggio 0:07 + 1:13 = 1:20);
 - le **assenze**: Ferie, Ferie anno prec. (FEP), Malattia, L. 104 e i permessi a ore (Art. 23, 25, 34) con le ore in "Assenze".
 
-Non cancella orari già presenti se il portale ne ha di meno (file salvato a giornata in corso) e non importa le richieste future (ferie pianificate): queste restano da inserire a mano. Alla fine mostra cosa ha importato e cosa va verificato.
+Un giorno già segnato **Ferie anno prec.** resta tale anche se il portale lo indica come Ferie dell'anno. Non cancella orari già presenti se il portale ne ha di meno (file salvato a giornata in corso) e non importa le richieste future (ferie pianificate): queste restano da inserire a mano. Alla fine mostra cosa ha importato e cosa va verificato.
 
 ## Protezione dei fogli
 

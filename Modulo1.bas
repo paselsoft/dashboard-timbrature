@@ -26,7 +26,8 @@ Option Explicit
 '     ... 104 ...                  -> L. 104
 '   Extrapresenza, Flessibilita' e Ore non autorizzate vengono ignorate
 '   (le calcola il file). Le richieste senza ore (es. ferie pianificate)
-'   non vengono importate.
+'   non vengono importate. Un giorno gia' segnato "Ferie anno prec." nel file
+'   resta tale anche se il portale lo indica come Ferie dell'anno.
 ' - non cancella orari gia' presenti se il portale ne ha di meno (file .txt
 '   salvato a giornata in corso): il giorno viene solo segnalato;
 ' - giorni con piu' di 4 timbrature: le coppie del pomeriggio vengono
@@ -221,6 +222,10 @@ Sub ImportaDaPortaleWeb()
                                   "), tenuto l'ultimo: verifica"
                     End If
                     sPrecedente = Trim$(CStr(ws.Cells(rowDest, 14).Value))
+                    ' Ferie gia' imputate all'anno precedente nel file (es. criterio
+                    ' "prima le ferie vecchie" indicato dall'ufficio del personale):
+                    ' se il portale le segna come Ferie dell'anno, si mantiene la scelta del file.
+                    If sTipo = "Ferie" And sPrecedente = "Ferie anno prec." Then sTipo = sPrecedente
                     If Len(sPrecedente) > 0 And sPrecedente <> sTipo Then
                         sAvvisi = sAvvisi & vbCrLf & "  - giorno " & giornoCorrente & ": " & _
                                   sPrecedente & " sostituito con " & sTipo
