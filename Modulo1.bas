@@ -29,8 +29,9 @@ Option Explicit
 '   non vengono importate.
 ' - non cancella orari gia' presenti se il portale ne ha di meno (file .txt
 '   salvato a giornata in corso): il giorno viene solo segnalato;
-' - segnala i giorni con piu' di 4 timbrature (ne importa 4) e i
-'   giustificativi non riconosciuti.
+' - giorni con piu' di 4 timbrature: le coppie del pomeriggio vengono
+'   accorpate in una sola con lo stesso tempo lavorato (orari reali in una
+'   nota su Entr 2); segnala i giustificativi non riconosciuti.
 '=============================================================================
 
 Sub ImportaDaPortaleWeb()
@@ -168,8 +169,18 @@ Sub ImportaDaPortaleWeb()
                 GoTo RigaSuccessiva
             End If
             If numTimbrature > MAX_TIMBRATURE Then
+                ' Piu' di 4 timbrature (es. uscita e rientro per una visita nel
+                ' pomeriggio): le coppie dopo la prima vengono accorpate in una sola,
+                ' con lo stesso tempo lavorato; gli orari reali vanno in una nota.
+                If ImportaPiuCoppie(ws, rowDest, cleanedLine, numTimbrature) Then
+                    sAvvisi = sAvvisi & vbCrLf & "  - giorno " & giornoCorrente & ": " & numTimbrature & _
+                              " timbrature accorpate in 2 coppie (orari reali nella nota su Entr 2)"
+                    countTrovati = countTrovati + 1
+                    GoTo RigaSuccessiva
+                End If
                 sAvvisi = sAvvisi & vbCrLf & "  - giorno " & giornoCorrente & ": " & numTimbrature & _
-                          " timbrature, importate le prime " & MAX_TIMBRATURE & " (sistemale a mano)"
+                          " timbrature non accorpabili, importate le prime " & MAX_TIMBRATURE & _
+                          " (sistemale a mano)"
                 numTimbrature = MAX_TIMBRATURE
             End If
 
@@ -260,6 +271,54 @@ GestioneErrori:
     sErr = Err.Description
     Resume Uscita
 End Sub
+
+
+'-----------------------------------------------------------------------------
+' Giorno con piu' di 4 timbrature (numero pari, orari in ordine crescente):
+'   Entr 1 / Usc 1 = prima coppia (reale)
+'   Usc 2          = ultima uscita (reale)
+'   Entr 2         = Usc 2 meno il tempo lavorato in TUTTE le coppie successive
+' Cosi' il lavorato del giorno resta identico a quello del portale.
+' Esempio: 07:38 13:38 14:08 14:15 15:55 17:08
+'   pomeriggio = 0:07 + 1:13 = 1:20  ->  Entr 2 = 17:08 - 1:20 = 15:48
+' Sulla cella Entr 2 viene aggiunta una nota con gli orari reali.
+' Restituisce False (e non scrive nulla) se i dati non lo permettono.
+'-----------------------------------------------------------------------------
+Private Function ImportaPiuCoppie(ByVal ws As Worksheet, ByVal r As Long, _
+                                  ByVal sOrari As String, ByVal n As Long) As Boolean
+    Dim t() As Date, i As Long
+    Dim dPom As Double, dEntr2 As Double
+    Dim sNota As String
+
+    If n Mod 2 <> 0 Then Exit Function
+    ReDim t(1 To n)
+    For i = 1 To n
+        If Not LeggiOrario(Mid$(sOrari, (i - 1) * 5 + 1, 5), t(i)) Then Exit Function
+        If i > 1 Then
+            If t(i) < t(i - 1) Then Exit Function
+        End If
+    Next i
+
+    For i = 3 To n - 1 Step 2
+        dPom = dPom + (CDbl(t(i + 1)) - CDbl(t(i)))
+        sNota = sNota & IIf(i > 3, " + ", "") & Format$(t(i), "hh:mm") & "-" & Format$(t(i + 1), "hh:mm")
+    Next i
+    dEntr2 = Round((CDbl(t(n)) - dPom) * 1440, 0) / 1440
+    If dEntr2 < CDbl(t(2)) Then Exit Function
+
+    With ws
+        .Range(.Cells(r, 6), .Cells(r, 9)).ClearContents
+        .Cells(r, 6).Value = t(1)
+        .Cells(r, 7).Value = t(2)
+        .Cells(r, 8).Value = CDate(dEntr2)
+        .Cells(r, 9).Value = t(n)
+        .Range(.Cells(r, 6), .Cells(r, 9)).NumberFormat = "hh:mm"
+        If Not .Cells(r, 8).Comment Is Nothing Then .Cells(r, 8).Comment.Delete
+        .Cells(r, 8).AddComment "Timbrature reali del pomeriggio: " & sNota & vbLf & _
+                                "(Entr 2 calcolata dall'importazione)"
+    End With
+    ImportaPiuCoppie = True
+End Function
 
 
 '-----------------------------------------------------------------------------
