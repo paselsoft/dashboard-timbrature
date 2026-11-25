@@ -284,24 +284,32 @@ GestioneErrori:
 End Sub
 
 
-' Aggiunge "Ferie anno prec." all'elenco a discesa esistente (se manca),
-' mantenendo il separatore usato dall'elenco attuale.
+' Menu Tipo Assenza: elenco nelle celle Impostazioni!B32:B38 (nome Tipi_Assenza)
+' e convalida che punta al nome, cosi' non dipende dal separatore di elenco
+' della lingua di Excel. (Versione corretta: la prima versione scriveva
+' l'elenco come testo e in Excel italiano diventava una voce unica.)
 Private Sub AggiungiTipoAlMenu(ByVal rng As Range)
-    Dim sLista As String, sSep As String
-    sLista = ""
-    On Error Resume Next
-    sLista = rng.Cells(1, 1).Validation.Formula1
-    On Error GoTo 0
-    If Len(sLista) = 0 Then
-        Err.Raise vbObjectError + 990, , "Elenco Tipo Assenza non trovato in " & rng.Parent.Name
+    Dim wsImp As Worksheet, vTipi As Variant, i As Long, bProt As Boolean
+    vTipi = Array("Ferie", "Ferie anno prec.", "Malattia", "L. 104", _
+                  "Art. 23 (Visite)", "Art. 25 (Motivi pers.)", "Art. 34 (A recupero)")
+    If Not EsisteNome("Tipi_Assenza") Then
+        Set wsImp = ThisWorkbook.Worksheets("Impostazioni")
+        bProt = wsImp.ProtectContents
+        If bProt Then wsImp.Unprotect
+        wsImp.Range("B31").Value = "Tipi di assenza (menu a tendina)"
+        wsImp.Range("B31").Font.Bold = True
+        For i = 0 To UBound(vTipi)
+            wsImp.Cells(32 + i, 2).Value = vTipi(i)
+        Next i
+        wsImp.Range("B31:B38").Borders.LineStyle = xlContinuous
+        wsImp.Range("D31").Value = "Voci del menu Tipo Assenza: non modificarle, i nomi sono usati dalle formule."
+        ThisWorkbook.Names.Add Name:="Tipi_Assenza", RefersTo:="=Impostazioni!$B$32:$B$38"
+        If bProt Then wsImp.Protect
     End If
-    If InStr(1, sLista, FEP, vbTextCompare) > 0 Then Exit Sub
-    If InStr(sLista, ";") > 0 Then sSep = ";" Else sSep = ","
-    sLista = sLista & sSep & FEP
     With rng.Validation
         .Delete
         .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, Operator:=xlBetween, _
-             Formula1:=sLista
+             Formula1:="=Tipi_Assenza"
         .IgnoreBlank = True
         .InCellDropdown = True
     End With

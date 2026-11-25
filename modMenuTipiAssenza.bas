@@ -13,7 +13,10 @@ Option Explicit
 ' dipende piu' dal separatore di elenco (virgola o punto e virgola) della
 ' lingua di Excel.
 '
-' I valori gia' inseriti nei mesi non vengono modificati.
+' I valori validi gia' inseriti nei mesi non vengono modificati. Le celle che
+' contengono un valore non presente nell'elenco (per esempio la "voce unica"
+' del menu rovinato) vengono svuotate ed elencate alla fine, cosi' si
+' possono reinserire scegliendo dal menu corretto.
 ' Va eseguita una volta in OGNI file. Dopo l'uso il modulo puo' essere rimosso.
 '=============================================================================
 
@@ -25,6 +28,7 @@ Public Sub CorreggiMenuTipoAssenza()
     Dim eraProtetto As Boolean
     Dim bScreenUpd As Boolean, bEvents As Boolean
     Dim i As Long, nFogli As Long
+    Dim c As Range, sTipo As String, bValido As Boolean, sPuliti As String
     Dim lErrNum As Long, sErrDesc As String, sFoglioErr As String
 
     vMesi = Array("Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", _
@@ -83,6 +87,22 @@ Public Sub CorreggiMenuTipoAssenza()
             sFoglioErr = ws.Name
             eraProtetto = ws.ProtectContents
             If eraProtetto Then ws.Unprotect
+            ' valori non validi (es. la voce unica del menu rovinato)
+            For Each c In ws.Range("N11:N41").Cells
+                sTipo = Trim$(CStr(c.Value))
+                If Len(sTipo) > 0 And Not c.HasFormula Then
+                    bValido = False
+                    For i = 0 To UBound(vTipi)
+                        If StrComp(sTipo, CStr(vTipi(i)), vbBinaryCompare) = 0 Then bValido = True
+                    Next i
+                    If Not bValido Then
+                        sPuliti = sPuliti & vbCrLf & "  - " & ws.Name & " " & ws.Cells(c.Row, 2).Text & _
+                                  ": " & Chr(34) & Left$(sTipo, 30) & IIf(Len(sTipo) > 30, "...", "") & Chr(34)
+                        c.ClearContents
+                    End If
+                End If
+            Next c
+
             With ws.Range("N11:N41").Validation
                 .Delete
                 .Add Type:=xlValidateList, AlertStyle:=xlValidAlertStop, _
@@ -113,8 +133,11 @@ Uscita:
                vbCritical, "Menu Tipo Assenza"
     Else
         MsgBox "Menu Tipo Assenza corretto in " & nFogli & " mesi (" & _
-               UBound(vTipi) + 1 & " voci, una per riga)." & vbCrLf & vbCrLf & _
-               "Salva il file.", vbInformation, "Menu Tipo Assenza"
+               UBound(vTipi) + 1 & " voci, una per riga)." & _
+               IIf(Len(sPuliti) > 0, vbCrLf & vbCrLf & _
+                   "Celle con un valore non valido, svuotate (scegli di nuovo il tipo dal menu):" & _
+                   sPuliti, "") & vbCrLf & vbCrLf & _
+               "Salva il file.", IIf(Len(sPuliti) > 0, vbExclamation, vbInformation), "Menu Tipo Assenza"
     End If
     Exit Sub
 
