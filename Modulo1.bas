@@ -30,6 +30,8 @@ Option Explicit
 '   resta tale anche se il portale lo indica come Ferie dell'anno.
 ' - non cancella orari gia' presenti se il portale ne ha di meno (file .txt
 '   salvato a giornata in corso): il giorno viene solo segnalato;
+' - le timbrature di un giorno possono essere su piu' righe (il portale va a
+'   capo quando sono molte): vengono raccolte tutte;
 ' - giorni con piu' di 4 timbrature: le coppie del pomeriggio vengono
 '   accorpate in una sola con lo stesso tempo lavorato (orari reali in una
 '   nota su Entr 2); segnala i giustificativi non riconosciuti.
@@ -65,6 +67,7 @@ Sub ImportaDaPortaleWeb()
     Dim lErr As Long, sErr As String
     Dim regExGiust As Object, mGiust As Object
     Dim bOrariFatti As Boolean, nGiaPresenti As Long
+    Dim sOrariGiorno As String
     Dim sDesc As String, sTipo As String, bConOre As Boolean
     Dim sPrecedente As String, sTipoImportato As String
     Dim countAssenze As Long, sAvvisi As String
@@ -130,16 +133,20 @@ Sub ImportaDaPortaleWeb()
 
         ' 1. Intestazione del giorno: da qui in poi le righe sono di quel giorno
         If regExGiorno.Test(lineText) Then
+            GoSub ElaboraOrari              ' completa gli orari del giorno precedente
             giornoCorrente = CLng(regExGiorno.Execute(lineText)(0).SubMatches(0))
             bOrariFatti = False
+            sOrariGiorno = ""
             sTipoImportato = ""
             GoTo RigaSuccessiva
         End If
         If giornoCorrente = 0 Then GoTo RigaSuccessiva
         rowDest = RIGA_OFFSET + giornoCorrente
 
-        ' 2. Riga di soli orari "hh:mmhh:mm..." (la prima del giorno)
+        ' 2. Righe di soli orari "hh:mmhh:mm...": si RACCOLGONO, perche' il portale
+        '    puo' andare a capo (es. 6 timbrature su due righe)
         cleanedLine = Replace(lineText, " ", "")
+        If Len(cleanedLine) = 0 Then GoTo RigaSuccessiva
         isTimeLine = False
         If Not bOrariFatti And Len(cleanedLine) >= 5 And Len(cleanedLine) Mod 5 = 0 Then
             isTimeLine = True
@@ -150,56 +157,13 @@ Sub ImportaDaPortaleWeb()
                 End If
             Next i
         End If
-
         If isTimeLine Then
-            bOrariFatti = True
-            If Len(Trim$(ws.Cells(rowDest, 2).Text)) = 0 Then
-                sScartati = sScartati & vbCrLf & "  - giorno " & giornoCorrente & " (non esiste nel mese)"
-                countScartati = countScartati + 1
-                GoTo RigaSuccessiva
-            End If
-
-            numTimbrature = Len(cleanedLine) \ 5
-            nGiaPresenti = Application.WorksheetFunction.Count( _
-                           ws.Range(ws.Cells(rowDest, COL_ENTR1), ws.Cells(rowDest, COL_USC2)))
-            If numTimbrature < nGiaPresenti Then
-                ' file salvato a giornata in corso: non cancello orari gia' inseriti
-                sAvvisi = sAvvisi & vbCrLf & "  - giorno " & giornoCorrente & ": il portale ha " & _
-                          numTimbrature & " timbrature, nel file ce ne sono " & nGiaPresenti & _
-                          " (orari NON modificati)"
-                GoTo RigaSuccessiva
-            End If
-            If numTimbrature > MAX_TIMBRATURE Then
-                ' Piu' di 4 timbrature (es. uscita e rientro per una visita nel
-                ' pomeriggio): le coppie dopo la prima vengono accorpate in una sola,
-                ' con lo stesso tempo lavorato; gli orari reali vanno in una nota.
-                If ImportaPiuCoppie(ws, rowDest, cleanedLine, numTimbrature) Then
-                    sAvvisi = sAvvisi & vbCrLf & "  - giorno " & giornoCorrente & ": " & numTimbrature & _
-                              " timbrature accorpate in 2 coppie (orari reali nella nota su Entr 2)"
-                    countTrovati = countTrovati + 1
-                    GoTo RigaSuccessiva
-                End If
-                sAvvisi = sAvvisi & vbCrLf & "  - giorno " & giornoCorrente & ": " & numTimbrature & _
-                          " timbrature non accorpabili, importate le prime " & MAX_TIMBRATURE & _
-                          " (sistemale a mano)"
-                numTimbrature = MAX_TIMBRATURE
-            End If
-
-            ws.Range(ws.Cells(rowDest, COL_ENTR1), ws.Cells(rowDest, COL_USC2)).ClearContents
-            For i = 0 To numTimbrature - 1
-                orarioStr = Mid$(cleanedLine, (i * 5) + 1, 5)
-                If LeggiOrario(orarioStr, dOrario) Then
-                    ws.Cells(rowDest, COL_ENTR1 + i).Value = dOrario
-                Else
-                    sScartati = sScartati & vbCrLf & "  - giorno " & giornoCorrente & _
-                                ": orario non valido " & Chr(34) & orarioStr & Chr(34)
-                    countScartati = countScartati + 1
-                End If
-            Next i
-            ws.Range(ws.Cells(rowDest, COL_ENTR1), ws.Cells(rowDest, COL_USC2)).NumberFormat = "hh:mm"
-            countTrovati = countTrovati + 1
+            sOrariGiorno = sOrariGiorno & cleanedLine
             GoTo RigaSuccessiva
         End If
+
+        ' qualsiasi altra riga chiude l'elenco degli orari del giorno
+        GoSub ElaboraOrari
 
         ' 3. Giustificativo con le ore (es. "9:00Ferie dalle 07:00 alle 16:00")
         If regExGiust.Test(lineText) Then
@@ -245,6 +209,7 @@ Sub ImportaDaPortaleWeb()
 
 RigaSuccessiva:
     Next k
+    GoSub ElaboraOrari                  ' orari dell'ultimo giorno del file
     bCompletato = True
 
 '--- Ripristino (eseguito SEMPRE) ---------------------------------------------
@@ -270,6 +235,60 @@ Uscita:
                vbCritical, "Importa dal portale"
     End If
     Exit Sub
+
+'--- Subroutine: scrive nel foglio gli orari raccolti per il giorno corrente ---
+ElaboraOrari:
+    If Len(sOrariGiorno) = 0 Or giornoCorrente = 0 Then Return
+    cleanedLine = sOrariGiorno
+    sOrariGiorno = ""
+    bOrariFatti = True
+    rowDest = RIGA_OFFSET + giornoCorrente
+        If Len(Trim$(ws.Cells(rowDest, 2).Text)) = 0 Then
+            sScartati = sScartati & vbCrLf & "  - giorno " & giornoCorrente & " (non esiste nel mese)"
+            countScartati = countScartati + 1
+            Return
+        End If
+
+        numTimbrature = Len(cleanedLine) \ 5
+        nGiaPresenti = Application.WorksheetFunction.Count( _
+                       ws.Range(ws.Cells(rowDest, COL_ENTR1), ws.Cells(rowDest, COL_USC2)))
+        If numTimbrature < nGiaPresenti Then
+            ' file salvato a giornata in corso: non cancello orari gia' inseriti
+            sAvvisi = sAvvisi & vbCrLf & "  - giorno " & giornoCorrente & ": il portale ha " & _
+                      numTimbrature & " timbrature, nel file ce ne sono " & nGiaPresenti & _
+                      " (orari NON modificati)"
+            Return
+        End If
+        If numTimbrature > MAX_TIMBRATURE Then
+            ' Piu' di 4 timbrature (es. uscita e rientro per una visita nel
+            ' pomeriggio): le coppie dopo la prima vengono accorpate in una sola,
+            ' con lo stesso tempo lavorato; gli orari reali vanno in una nota.
+            If ImportaPiuCoppie(ws, rowDest, cleanedLine, numTimbrature) Then
+                sAvvisi = sAvvisi & vbCrLf & "  - giorno " & giornoCorrente & ": " & numTimbrature & _
+                          " timbrature accorpate in 2 coppie (orari reali nella nota su Entr 2)"
+                countTrovati = countTrovati + 1
+                Return
+            End If
+            sAvvisi = sAvvisi & vbCrLf & "  - giorno " & giornoCorrente & ": " & numTimbrature & _
+                      " timbrature non accorpabili, importate le prime " & MAX_TIMBRATURE & _
+                      " (sistemale a mano)"
+            numTimbrature = MAX_TIMBRATURE
+        End If
+
+        ws.Range(ws.Cells(rowDest, COL_ENTR1), ws.Cells(rowDest, COL_USC2)).ClearContents
+        For i = 0 To numTimbrature - 1
+            orarioStr = Mid$(cleanedLine, (i * 5) + 1, 5)
+            If LeggiOrario(orarioStr, dOrario) Then
+                ws.Cells(rowDest, COL_ENTR1 + i).Value = dOrario
+            Else
+                sScartati = sScartati & vbCrLf & "  - giorno " & giornoCorrente & _
+                            ": orario non valido " & Chr(34) & orarioStr & Chr(34)
+                countScartati = countScartati + 1
+            End If
+        Next i
+        ws.Range(ws.Cells(rowDest, COL_ENTR1), ws.Cells(rowDest, COL_USC2)).NumberFormat = "hh:mm"
+        countTrovati = countTrovati + 1
+        Return
 
 GestioneErrori:
     lErr = Err.Number
