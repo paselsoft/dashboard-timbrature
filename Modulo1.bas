@@ -3,8 +3,10 @@ Option Explicit
 
 '=============================================================================
 ' ImportaDaPortaleWeb
-' Legge un file .txt con il copia-incolla del cartellino dal portale web e
-' scrive le timbrature (Entr1, Usc1, Entr2, Usc2) nel foglio mensile attivo.
+' Importa il cartellino del portale web nel foglio mensile attivo, leggendo
+' il testo COPIATO (appunti: Ctrl+A e Ctrl+C sul portale) oppure un file .txt.
+' Prima di scrivere controlla che il cartellino sia del mese del foglio
+' (giorni della settimana e festivi).
 '
 ' Rispetto alla versione precedente:
 '   - funziona solo sui 12 fogli mensili (non su Dashboard, Festivita', ...);
@@ -68,6 +70,8 @@ Sub ImportaDaPortaleWeb()
     Dim regExGiust As Object, mGiust As Object
     Dim bOrariFatti As Boolean, nGiaPresenti As Long
     Dim sOrariGiorno As String
+    Dim iScelta As VbMsgBoxResult, bDaAppunti As Boolean
+    Dim sMotivo As String, bConferma As Boolean
     Dim sDesc As String, sTipo As String, bConOre As Boolean
     Dim sPrecedente As String, sTipoImportato As String
     Dim countAssenze As Long, sAvvisi As String
@@ -81,14 +85,31 @@ Sub ImportaDaPortaleWeb()
         Exit Sub
     End If
 
-    '--- Scelta del file -------------------------------------------------------
-    Set fd = Application.FileDialog(msoFileDialogFilePicker)
-    fd.Title = "Seleziona il file TXT con il copia-incolla dal portale"
-    fd.Filters.Clear
-    fd.Filters.Add "File di Testo", "*.txt"
-    fd.AllowMultiSelect = False
-    If fd.Show <> -1 Then Exit Sub
-    filePath = fd.SelectedItems(1)
+    '--- Origine: appunti (testo copiato dal portale) oppure file .txt --------
+    iScelta = MsgBox("Importare dagli APPUNTI il cartellino copiato dal portale?" & vbCrLf & vbCrLf & _
+                     "  Si' = testo appena copiato (sul portale: Ctrl+A, poi Ctrl+C)" & vbCrLf & _
+                     "  No  = scegli un file .txt", _
+                     vbQuestion + vbYesNoCancel, "Importa dal portale")
+    If iScelta = vbCancel Then Exit Sub
+
+    If iScelta = vbYes Then
+        sTesto = LeggiAppunti()
+        If Len(Trim$(sTesto)) = 0 Then
+            MsgBox "Negli appunti non c'e' testo." & vbCrLf & vbCrLf & _
+                   "Apri il cartellino del mese sul portale, premi Ctrl+A e poi Ctrl+C, " & _
+                   "quindi riprova.", vbExclamation, "Importa dal portale"
+            Exit Sub
+        End If
+        bDaAppunti = True
+    Else
+        Set fd = Application.FileDialog(msoFileDialogFilePicker)
+        fd.Title = "Seleziona il file TXT con il copia-incolla dal portale"
+        fd.Filters.Clear
+        fd.Filters.Add "File di Testo", "*.txt"
+        fd.AllowMultiSelect = False
+        If fd.Show <> -1 Then Exit Sub
+        filePath = fd.SelectedItems(1)
+    End If
 
     ' Riga del giorno (es. "1 Gio", "26 Lun")
     Set regExGiorno = CreateObject("VBScript.RegExp")
@@ -105,16 +126,18 @@ Sub ImportaDaPortaleWeb()
     On Error GoTo GestioneErrori
     Application.ScreenUpdating = False
 
-    '--- Lettura dell'intero file ---------------------------------------------
+    '--- Lettura dell'intero file (se non si importa dagli appunti) -----------
     ' (lettura binaria: legge tutto il file in una volta, qualunque sia il
     '  tipo di fine riga)
-    fileNum = FreeFile
-    Open filePath For Binary Access Read As #fileNum
-    bFileAperto = True
-    sTesto = Space$(LOF(fileNum))
-    If LOF(fileNum) > 0 Then Get #fileNum, , sTesto
-    Close #fileNum
-    bFileAperto = False
+    If Not bDaAppunti Then
+        fileNum = FreeFile
+        Open filePath For Binary Access Read As #fileNum
+        bFileAperto = True
+        sTesto = Space$(LOF(fileNum))
+        If LOF(fileNum) > 0 Then Get #fileNum, , sTesto
+        Close #fileNum
+        bFileAperto = False
+    End If
 
     ' toglie l'eventuale BOM (UTF-8 o "Unicode" di Blocco note) e uniforma
     ' i fine riga
@@ -123,6 +146,17 @@ Sub ImportaDaPortaleWeb()
     sTesto = Replace(sTesto, vbCrLf, vbLf)
     sTesto = Replace(sTesto, vbCr, vbLf)
     vRighe = Split(sTesto, vbLf)
+
+    '--- Il cartellino corrisponde al mese del foglio? -------------------------
+    If Not ControllaMese(ws, vRighe, regExGiorno, sMotivo, bConferma) Then
+        MsgBox sMotivo & vbCrLf & vbCrLf & "Nessuna modifica effettuata.", _
+               vbExclamation, "Importa dal portale"
+        GoTo Uscita
+    End If
+    If bConferma Then
+        If MsgBox(sMotivo & vbCrLf & vbCrLf & "Importare nel foglio " & ws.Name & "?", _
+                  vbQuestion + vbYesNo + vbDefaultButton2, "Importa dal portale") <> vbYes Then GoTo Uscita
+    End If
 
     If eraProtetto Then ws.Unprotect
 
@@ -342,6 +376,151 @@ Private Function ImportaPiuCoppie(ByVal ws As Worksheet, ByVal r As Long, _
                                 "(Entr 2 calcolata dall'importazione)"
     End With
     ImportaPiuCoppie = True
+End Function
+
+
+'-----------------------------------------------------------------------------
+' Testo presente negli appunti di Windows ("" se vuoti o non leggibili).
+' Prova prima l'oggetto DataObject di Office, poi quello di Internet Explorer.
+'-----------------------------------------------------------------------------
+Private Function LeggiAppunti() As String
+    Dim o As Object, s As String
+    On Error Resume Next
+    Set o = CreateObject("New:{1C3B4210-F441-11CE-B9EA-00AA006B1A69}")   ' MSForms.DataObject
+    If Not o Is Nothing Then
+        o.GetFromClipboard
+        s = o.GetText
+    End If
+    If Len(s) = 0 Then
+        Err.Clear
+        s = CreateObject("htmlfile").ParentWindow.ClipboardData.GetData("text")
+    End If
+    On Error GoTo 0
+    LeggiAppunti = s
+End Function
+
+
+'-----------------------------------------------------------------------------
+' Controlla che il cartellino copiato sia del mese del foglio attivo:
+'   - ogni giorno del portale ("1 Dom", "2 Lun"...) deve esistere nel foglio
+'     e cadere nello stesso giorno della settimana;
+'   - il numero di giorni deve essere quello del mese (il portale li elenca
+'     sempre tutti, anche quelli futuri);
+'   - i codici orario del portale devono essere coerenti con il foglio:
+'     "FS" (festivo) solo dove il foglio non ha orario previsto, "01"/"02"
+'     (giorno lavorativo) solo dove il foglio ha un orario previsto.
+' Restituisce False con il motivo se non corrisponde. Se corrisponde ma un
+' altro mese dell'anno ha lo stesso calendario e il testo non contiene un
+' festivo infrasettimanale che li distingua, chiede conferma (bConferma).
+'-----------------------------------------------------------------------------
+Private Function ControllaMese(ByVal ws As Worksheet, ByVal vRighe As Variant, _
+                               ByVal regExGiorno As Object, ByRef sMotivo As String, _
+                               ByRef bConferma As Boolean) As Boolean
+    Dim vGG As Variant, vMesi As Variant
+    Dim lAnno As Long, lMese As Long, nGiorniMese As Long
+    Dim k As Long, g As Long, m As Long, nGiorni As Long
+    Dim s As String, sAtteso As String, sCodice As String
+    Dim bFestivoFeriale As Boolean, sSimili As String
+    Dim vTarget As Variant, bLavorativo As Boolean
+    Dim gMax As Long
+
+    vGG = Array("Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom")
+    vMesi = Array("Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", _
+                  "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre")
+    bConferma = False
+    sMotivo = ""
+
+    On Error Resume Next
+    lAnno = CLng(ThisWorkbook.Worksheets("Dashboard").Range("A1").Value)
+    lMese = CLng(ws.Range("A1").Value)
+    On Error GoTo 0
+    If lAnno < 2000 Or lMese < 1 Or lMese > 12 Then
+        ControllaMese = True                 ' impossibile verificare: si prosegue
+        Exit Function
+    End If
+    nGiorniMese = Day(DateSerial(lAnno, lMese + 1, 0))
+
+    For k = LBound(vRighe) To UBound(vRighe)
+        s = Trim$(Replace(Replace(vRighe(k), Chr(160), " "), vbTab, " "))
+        If regExGiorno.Test(s) Then
+            g = CLng(regExGiorno.Execute(s)(0).SubMatches(0))
+            If g > nGiorniMese Then
+                sMotivo = "Il cartellino copiato contiene il giorno " & g & ", che in " & _
+                          vMesi(lMese - 1) & " " & lAnno & " non esiste." & vbCrLf & _
+                          "Spostati sul foglio del mese giusto oppure copia il mese corretto dal portale."
+                Exit Function
+            End If
+            sAtteso = vGG(Weekday(DateSerial(lAnno, lMese, g), vbMonday) - 1)
+            If StrComp(regExGiorno.Execute(s)(0).SubMatches(1), sAtteso, vbTextCompare) <> 0 Then
+                sMotivo = "Il cartellino copiato non e' di " & vMesi(lMese - 1) & " " & lAnno & ":" & vbCrLf & _
+                          "il giorno " & g & " sul portale e' " & regExGiorno.Execute(s)(0).SubMatches(1) & _
+                          ", nel foglio e' " & sAtteso & "." & vbCrLf & _
+                          "Spostati sul foglio del mese giusto oppure copia il mese corretto dal portale."
+                Exit Function
+            End If
+            nGiorni = nGiorni + 1
+            If g > gMax Then gMax = g
+        ElseIf nGiorni > 0 And g > 0 Then
+            ' codice orario del giorno: 01/02 = lavorativo, FS = festivo
+            sCodice = UCase$(s)
+            If sCodice = "FS" Or sCodice Like "##" Then
+                vTarget = ws.Cells(10 + g, 4).Value
+                bLavorativo = False
+                If Not IsError(vTarget) Then
+                    If IsNumeric(vTarget) And Not IsEmpty(vTarget) Then bLavorativo = (CDbl(vTarget) > 0)
+                End If
+                If sCodice = "FS" And bLavorativo Then
+                    sMotivo = "Il cartellino copiato non sembra di " & vMesi(lMese - 1) & " " & lAnno & ":" & _
+                              vbCrLf & "il giorno " & g & " sul portale e' festivo, nel foglio e' lavorativo." & _
+                              vbCrLf & "Spostati sul foglio del mese giusto oppure copia il mese corretto dal portale."
+                    Exit Function
+                End If
+                If sCodice Like "##" And Not bLavorativo And g <= nGiorniMese Then
+                    If Weekday(DateSerial(lAnno, lMese, g), vbMonday) <= 5 Then
+                        sMotivo = "Il cartellino copiato non sembra di " & vMesi(lMese - 1) & " " & lAnno & ":" & _
+                                  vbCrLf & "il giorno " & g & " sul portale e' lavorativo, nel foglio e' festivo." & _
+                                  vbCrLf & "Spostati sul foglio del mese giusto oppure copia il mese corretto dal portale."
+                        Exit Function
+                    End If
+                End If
+                If sCodice = "FS" And Weekday(DateSerial(lAnno, lMese, g), vbMonday) <= 5 Then bFestivoFeriale = True
+            End If
+        End If
+    Next k
+
+    If nGiorni = 0 Then
+        sMotivo = "Nel testo non c'e' nessun giorno del cartellino (righe come " & Chr(34) & "1 Dom" & _
+                  Chr(34) & ")." & vbCrLf & "Sul portale apri il cartellino del mese, premi Ctrl+A e Ctrl+C, poi riprova."
+        Exit Function
+    End If
+
+    ' il portale elenca sempre TUTTI i giorni del mese (anche quelli futuri)
+    If gMax <> nGiorniMese Then
+        sMotivo = "Il cartellino copiato ha " & gMax & " giorni, " & vMesi(lMese - 1) & " " & lAnno & _
+                  " ne ha " & nGiorniMese & ": non e' il mese di questo foglio." & vbCrLf & _
+                  "Spostati sul foglio del mese giusto oppure copia il mese corretto dal portale."
+        Exit Function
+    End If
+
+    ' altri mesi dello stesso anno con lo stesso calendario (stesso giorno di
+    ' inizio e stessa lunghezza) che il testo non permette di distinguere?
+    If Not bFestivoFeriale Then
+        For m = 1 To 12
+            If m <> lMese Then
+                If Weekday(DateSerial(lAnno, m, 1)) = Weekday(DateSerial(lAnno, lMese, 1)) And _
+                   Day(DateSerial(lAnno, m + 1, 0)) = nGiorniMese Then
+                    sSimili = sSimili & IIf(Len(sSimili) > 0, ", ", "") & vMesi(m - 1)
+                End If
+            End If
+        Next m
+        If Len(sSimili) > 0 Then
+            bConferma = True
+            sMotivo = "Il cartellino copiato e' compatibile con " & vMesi(lMese - 1) & " " & lAnno & _
+                      ", ma anche " & sSimili & " ha lo stesso calendario." & vbCrLf & _
+                      "Controlla di aver copiato " & vMesi(lMese - 1) & " dal portale."
+        End If
+    End If
+    ControllaMese = True
 End Function
 
 

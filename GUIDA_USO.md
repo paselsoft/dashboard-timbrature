@@ -52,7 +52,11 @@ Nel riepilogo di ogni mese (righe 23–27) scrivi i tre totali del cartellino de
 
 ## Importazione dal portale
 
-Il pulsante **Importa** legge il file .txt copiato dal portale e compila:
+Il modo più rapido: sul portale apri il cartellino del mese, premi **Ctrl+A** e **Ctrl+C**, poi nel foglio del mese premi **Importa timbrature** e rispondi **Sì** a "Importare dagli appunti?". Rispondendo **No** puoi ancora scegliere un file .txt.
+
+Prima di scrivere, la macro controlla che il cartellino sia **del mese del foglio**: giorni della settimana, numero di giorni e festivi devono coincidere. Se non coincidono si ferma senza modificare nulla; nei rari casi in cui due mesi hanno lo stesso calendario chiede conferma.
+
+L'importazione compila:
 
 - le **timbrature**: fino a 4 per giorno. Con **più di 4** (es. uscita e rientro per una visita nel pomeriggio) le coppie del pomeriggio vengono accorpate in una sola con lo stesso tempo lavorato: Entr 2 = Usc 2 meno il lavorato del pomeriggio, e gli orari reali vanno in una nota sulla cella Entr 2. Esempio: 07:38 13:38 14:08 14:15 15:55 17:08 → 07:38 13:38 **15:48** 17:08 (pomeriggio 0:07 + 1:13 = 1:20);
 - le **assenze**: Ferie, Ferie anno prec. (FEP), Malattia, L. 104 e i permessi a ore (Art. 23, 25, 34) con le ore in "Assenze".
