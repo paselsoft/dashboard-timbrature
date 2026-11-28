@@ -52,7 +52,7 @@ Nel riepilogo di ogni mese (righe 23–27) scrivi i tre totali del cartellino de
 
 ## Importazione dal portale
 
-Il modo più rapido: sul portale apri il cartellino del mese, premi **Ctrl+A** e **Ctrl+C**, poi nel foglio del mese premi **Importa timbrature** e rispondi **Sì** a "Importare dagli appunti?". Rispondendo **No** puoi ancora scegliere un file .txt.
+Il modo più rapido: sul portale apri il cartellino del mese, premi **Ctrl+A** e **Ctrl+C**, poi nel foglio del mese premi **Importa timbrature** e rispondi **Sì** a "Importare dagli appunti?". Dopo l'importazione il testo viene salvato anche nella cartella del file Excel come **MM.Mese.txt** (es. `01.Gennaio.txt`), sostituendo quello eventualmente già presente. Rispondendo **No** puoi ancora scegliere un file .txt.
 
 Prima di scrivere, la macro controlla che il cartellino sia **del mese del foglio**: giorni della settimana, numero di giorni e festivi devono coincidere. Se non coincidono si ferma senza modificare nulla; nei rari casi in cui due mesi hanno lo stesso calendario chiede conferma.
 

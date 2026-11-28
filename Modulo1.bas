@@ -6,7 +6,8 @@ Option Explicit
 ' Importa il cartellino del portale web nel foglio mensile attivo, leggendo
 ' il testo COPIATO (appunti: Ctrl+A e Ctrl+C sul portale) oppure un file .txt.
 ' Prima di scrivere controlla che il cartellino sia del mese del foglio
-' (giorni della settimana e festivi).
+' (giorni della settimana, numero di giorni e festivi). Dopo un'importazione
+' dagli appunti salva il testo in "MM.Mese.txt" nella cartella del file.
 '
 ' Rispetto alla versione precedente:
 '   - funziona solo sui 12 fogli mensili (non su Dashboard, Festivita', ...);
@@ -72,6 +73,7 @@ Sub ImportaDaPortaleWeb()
     Dim sOrariGiorno As String
     Dim iScelta As VbMsgBoxResult, bDaAppunti As Boolean
     Dim sMotivo As String, bConferma As Boolean
+    Dim sTestoAppunti As String, sFileSalvato As String
     Dim sDesc As String, sTipo As String, bConOre As Boolean
     Dim sPrecedente As String, sTipoImportato As String
     Dim countAssenze As Long, sAvvisi As String
@@ -101,6 +103,7 @@ Sub ImportaDaPortaleWeb()
             Exit Sub
         End If
         bDaAppunti = True
+        sTestoAppunti = sTesto          ' copia originale, da salvare in .txt
     Else
         Set fd = Application.FileDialog(msoFileDialogFilePicker)
         fd.Title = "Seleziona il file TXT con il copia-incolla dal portale"
@@ -246,6 +249,10 @@ RigaSuccessiva:
     GoSub ElaboraOrari                  ' orari dell'ultimo giorno del file
     bCompletato = True
 
+    ' Importazione dagli appunti riuscita: salvo anche il testo in un file
+    ' .txt nella cartella del file Excel (es. 01.Gennaio.txt), come archivio.
+    If bDaAppunti Then sFileSalvato = SalvaTestoMese(ws, sTestoAppunti)
+
 '--- Ripristino (eseguito SEMPRE) ---------------------------------------------
 Uscita:
     On Error Resume Next
@@ -258,6 +265,8 @@ Uscita:
         MsgBox "Importazione completata nel foglio '" & ws.Name & "'." & vbCrLf & _
                "Giorni con timbrature: " & countTrovati & vbCrLf & _
                "Assenze importate: " & countAssenze & _
+               IIf(bDaAppunti, vbCrLf & IIf(Len(sFileSalvato) > 0, "Testo salvato in: " & sFileSalvato, _
+                   "Testo NON salvato in .txt (cartella non scrivibile)"), "") & _
                IIf(countScartati > 0, vbCrLf & vbCrLf & "Elementi saltati (" & countScartati & "):" & sScartati, "") & _
                IIf(Len(sAvvisi) > 0, vbCrLf & vbCrLf & "Da verificare:" & sAvvisi, ""), _
                IIf(countScartati > 0 Or Len(sAvvisi) > 0, vbExclamation, vbInformation), _
@@ -376,6 +385,45 @@ Private Function ImportaPiuCoppie(ByVal ws As Worksheet, ByVal r As Long, _
                                 "(Entr 2 calcolata dall'importazione)"
     End With
     ImportaPiuCoppie = True
+End Function
+
+
+'-----------------------------------------------------------------------------
+' Salva il testo del cartellino nella cartella del file Excel con il nome
+' "MM.Mese.txt" (es. 01.Gennaio.txt), sostituendo l'eventuale file esistente.
+' Restituisce il nome del file salvato, oppure "" se non e' stato possibile.
+'-----------------------------------------------------------------------------
+Private Function SalvaTestoMese(ByVal ws As Worksheet, ByVal sTesto As String) As String
+    Dim sNome As String, sPercorso As String, f As Integer
+    Dim lMese As Long
+
+    On Error GoTo NonSalvato
+    If Len(ThisWorkbook.Path) = 0 Then Exit Function
+    If LCase$(Left$(ThisWorkbook.Path, 4)) = "http" Then Exit Function
+
+    lMese = 0
+    If IsNumeric(ws.Range("A1").Value) Then lMese = CLng(ws.Range("A1").Value)
+    If lMese < 1 Or lMese > 12 Then Exit Function
+
+    sNome = Format$(lMese, "00") & "." & ws.Name & ".txt"
+    sPercorso = ThisWorkbook.Path & Application.PathSeparator & sNome
+
+    ' fine riga in stile Windows, cosi' il file si apre bene con Blocco note
+    sTesto = Replace(sTesto, vbCrLf, vbLf)
+    sTesto = Replace(sTesto, vbCr, vbLf)
+    sTesto = Replace(sTesto, vbLf, vbCrLf)
+
+    f = FreeFile
+    Open sPercorso For Output As #f
+    Print #f, sTesto;
+    Close #f
+    SalvaTestoMese = sNome
+    Exit Function
+
+NonSalvato:
+    On Error Resume Next
+    Close #f
+    SalvaTestoMese = ""
 End Function
 
 
